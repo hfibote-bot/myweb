@@ -1,0 +1,104 @@
+
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>我的 GitHub Pages 试验站</title>
+  <meta name="description" content="这是一次尝试使用自己的静态网页（GitHub Pages）。" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <header class="container">
+    <div class="brand">
+      <div class="logo">◎</div>
+      <div>
+        <h1>我的静态网页试验站</h1>
+        <p class="sub">这是一次尝试使用自己的静态网页（GitHub Pages）。</p>
+      </div>
+    </div>
+
+    <nav class="nav">
+      <a href="#about">关于</a>
+      <a href="#log">小记</a>
+      <a href="#links">链接</a>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="card hero">
+      <h2>你好，世界 👋</h2>
+      <p>
+        我正在学习如何把一个简单的网页发布到网上。这个页面没有后端、没有数据库，
+        就是纯静态文件（HTML + CSS + JS）。它很朴素，但非常适合当作第一步。
+      </p>
+
+      <div class="grid">
+        <div class="stat">
+          <div class="label">当前时间</div>
+          <div class="value" id="now">加载中…</div>
+        </div>
+        <div class="stat">
+          <div class="label">本地访问次数</div>
+          <div class="value" id="visits">加载中…</div>
+          <div class="hint">（说明：计数保存在浏览器 localStorage，同一台电脑/浏览器有效）</div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="copyUrlBtn" class="btn">复制本站地址</button>
+        <a class="btn ghost" href="https://pages.github.com/" target="_blank" rel="noreferrer">了解 GitHub Pages</a>
+      </div>
+    </section>
+
+    <section id="about" class="card">
+      <h2>关于这个站</h2>
+      <ul class="list">
+        <li>目的：练习 GitHub Pages 的发布流程</li>
+        <li>形式：静态站点（不依赖服务器）</li>
+        <li>内容：一段说明 + 一点点交互</li>
+      </ul>
+      <p class="tip">
+        你可以随便改文字、换配色、加图片、加更多页面。静态网页最爽的就是：改完再 push 一下就更新。
+      </p>
+    </section>
+
+    <section id="log" class="card">
+      <h2>小记</h2>
+      <div class="timeline">
+        <div class="item">
+          <div class="dot"></div>
+          <div class="content">
+            <div class="title">第 1 天：发布成功</div>
+            <div class="desc">把静态文件上传到 GitHub，然后开启 Pages。第一次上线就像点亮一盏灯。</div>
+          </div>
+        </div>
+        <div class="item">
+          <div class="dot"></div>
+          <div class="content">
+            <div class="title">第 2 天：微调样式</div>
+            <div class="desc">尝试让排版更舒服一些，让页面看起来不那么“默认”。</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="links" class="card">
+      <h2>链接</h2>
+      <p>可以放你的社交账号、博客、收藏的站点等：</p>
+      <div class="chips">
+        <a class="chip" href="https://github.com/" target="_blank" rel="noreferrer">GitHub</a>
+        <a class="chip" href="https://docs.github.com/pages" target="_blank" rel="noreferrer">Pages 文档</a>
+        <a class="chip" href="https://developer.mozilla.org/" target="_blank" rel="noreferrer">MDN Web Docs</a>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p>© <span id="year"></span> • 这是一次静态网页尝试。愿你从这里开始，搭出自己的小宇宙。</p>
+    </footer>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
