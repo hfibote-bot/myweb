@@ -1,4 +1,3 @@
-
 <!doctype html>
 <html lang="zh-CN">
 <head>
@@ -22,10 +21,10 @@
     <nav class="nav">
       <a href="#about">关于</a>
       <a href="#log">小记</a>
+      <a href="#tools">作品</a>
       <a href="#links">链接</a>
       <a href="./planets.html">行星</a>
       <a href="./map.html">地图</a>
-
     </nav>
   </header>
 
@@ -50,9 +49,25 @@
       </div>
 
       <div class="actions">
-        <button id="copyUrlBtn" class="btn">复制本站地址</button>
-        <a class="btn ghost" href="https://pages.github.com/" target="_blank" rel="noreferrer">了解 GitHub Pages</a>
+        <a class="btn" href="./planet.html">🚀 打开行星运动</a>
+        <a class="btn" href="./map.html">🗺️ 打开地图</a>
+        <button id="copyUrlBtn" class="btn ghost">复制本站地址</button>
       </div>
+    </section>
+
+    <section id="tools" class="card">
+      <h2>我的小作品</h2>
+      <p class="sub">下面这些是我放在 GitHub Pages 里的静态页面练习：</p>
+
+      <div class="chips" style="margin-top:12px;">
+        <a class="chip" href="./planet.html">行星运动（N 体重力）</a>
+        <a class="chip" href="./map.html">地图（Leaflet / OSM）</a>
+      </div>
+
+      <p class="tip" style="margin-top:12px;">
+        小提示：如果你添加了更多页面（比如 <code>about.html</code>、<code>gallery.html</code>），
+        只要也放在仓库根目录，然后在这里加个链接就行。
+      </p>
     </section>
 
     <section id="about" class="card">
@@ -60,7 +75,7 @@
       <ul class="list">
         <li>目的：练习 GitHub Pages 的发布流程</li>
         <li>形式：静态站点（不依赖服务器）</li>
-        <li>内容：一段说明 + 一点点交互</li>
+        <li>内容：一段说明 + 一点点交互 + 小作品入口</li>
       </ul>
       <p class="tip">
         你可以随便改文字、换配色、加图片、加更多页面。静态网页最爽的就是：改完再 push 一下就更新。
@@ -80,8 +95,8 @@
         <div class="item">
           <div class="dot"></div>
           <div class="content">
-            <div class="title">第 2 天：微调样式</div>
-            <div class="desc">尝试让排版更舒服一些，让页面看起来不那么“默认”。</div>
+            <div class="title">第 2 天：加入小作品</div>
+            <div class="desc">添加了行星运动与地图页面，并在首页做入口，方便访问。</div>
           </div>
         </div>
       </div>
@@ -105,4 +120,3 @@
   <script src="script.js"></script>
 </body>
 </html>
-
