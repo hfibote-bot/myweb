@@ -37,6 +37,32 @@ function copySiteUrl(){
   });
 }
 
+// ✅ 世界时间：根据 data-tz 自动更新
+function updateWorldClocks(){
+  const nodes = document.querySelectorAll("[data-tz]");
+  const now = new Date();
+
+  for (const node of nodes) {
+    const tz = node.getAttribute("data-tz");
+    try {
+      const fmt = new Intl.DateTimeFormat("zh-CN", {
+        timeZone: tz,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false
+      });
+      node.textContent = fmt.format(now);
+    } catch (e) {
+      // 某些非常旧的浏览器可能不支持 timeZone
+      node.textContent = now.toLocaleString();
+    }
+  }
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   updateTime();
   setInterval(updateTime, 1000);
@@ -48,4 +74,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const btn = document.getElementById("copyUrlBtn");
   if (btn) btn.addEventListener("click", copySiteUrl);
+
+  // 世界时间每秒更新
+  updateWorldClocks();
+  setInterval(updateWorldClocks, 1000);
 });
