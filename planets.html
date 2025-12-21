@@ -18,9 +18,24 @@
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 </head>
 
+<div id="ui" style="
+  position:fixed; left:12px; top:12px; z-index:999;
+  padding:10px 12px; border-radius:12px;
+  background:rgba(20,20,30,0.75); color:rgba(255,255,255,0.92);
+  border:1px solid rgba(255,255,255,0.14); backdrop-filter: blur(10px);
+  font-family: system-ui, 'Microsoft YaHei';
+">
+  <button id="pauseBtn" style="
+    cursor:pointer; padding:8px 10px; border-radius:10px;
+    border:1px solid rgba(255,255,255,0.16);
+    background:rgba(255,255,255,0.06); color:rgba(255,255,255,0.92);
+  ">⏸ 暂停</button>
+  <span style="opacity:.8; font-size:12px; margin-left:8px;">空格键也可以暂停/继续</span>
+</div>
+ 
 <body>
   <div id="info">
-    <div><b>3D 太阳系模拟（纹理增强版）</b></div>
+    <div><b>3D 太阳系模拟</b></div>
     <div class="small">左键旋转 | 滚轮缩放 | 右键平移</div>
   </div>
 
@@ -381,3 +396,4 @@
   </script>
 </body>
 </html>
+
