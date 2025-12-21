@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>我的 GitHub Pages 试验站</title>
-  <meta name="description" content="这是一次尝试使用自己的静态网页（GitHub Pages）。" />
+  <meta name="description" content="为了好玩：世界时间 + 地图 + 行星运动" />
   <link rel="stylesheet" href="style.css" />
 </head>
 
@@ -14,17 +14,15 @@
       <div class="logo">◎</div>
       <div>
         <h1>我的静态网页试验站</h1>
-        <p class="sub">这是一次尝试使用自己的静态网页（GitHub Pages）。</p>
+        <p class="sub">为了好玩：世界时间 + 地图 + 行星运动</p>
       </div>
     </div>
 
     <nav class="nav">
-      <a href="#about">关于</a>
-      <a href="#log">小记</a>
-      <a href="#tools">作品</a>
-      <a href="#links">链接</a>
-      <a href="./planets.html">行星</a>
+      <a href="#worldtime">世界时间</a>
       <a href="./map.html">地图</a>
+      <a href="./planets.html">行星</a>
+      <a href="#about">关于</a>
     </nav>
   </header>
 
@@ -32,88 +30,71 @@
     <section class="card hero">
       <h2>你好，世界 👋</h2>
       <p>
-        我正在学习如何把一个简单的网页发布到网上。这个页面没有后端、没有数据库，
-        就是纯静态文件（HTML + CSS + JS）。它很朴素，但非常适合当作第一步。
+        我把几个“好玩的前端小东西”放到 GitHub Pages：世界时间、地图定位、还有行星运动。
+        都是纯静态页面（HTML + CSS + JS），改完提交就能更新。
       </p>
 
-      <div class="grid">
-        <div class="stat">
-          <div class="label">当前时间</div>
-          <div class="value" id="now">加载中…</div>
-        </div>
-        <div class="stat">
-          <div class="label">本地访问次数</div>
-          <div class="value" id="visits">加载中…</div>
-          <div class="hint">（说明：计数保存在浏览器 localStorage，同一台电脑/浏览器有效）</div>
-        </div>
-      </div>
-
       <div class="actions">
-        <a class="btn" href="./planet.html">🚀 打开行星运动</a>
+        <a class="btn" href="./planets.html">🚀 打开行星运动</a>
         <a class="btn" href="./map.html">🗺️ 打开地图</a>
         <button id="copyUrlBtn" class="btn ghost">复制本站地址</button>
       </div>
     </section>
 
-    <section id="tools" class="card">
-      <h2>我的小作品</h2>
-      <p class="sub">下面这些是我放在 GitHub Pages 里的静态页面练习：</p>
+    <section id="worldtime" class="card">
+      <h2>世界时间</h2>
+      <p class="sub">点击“在地图中查看”会自动定位到对应城市。</p>
 
-      <div class="chips" style="margin-top:12px;">
-        <a class="chip" href="./planet.html">行星运动（N 体重力）</a>
-        <a class="chip" href="./map.html">地图（Leaflet / OSM）</a>
+      <div class="grid">
+        <div class="stat">
+          <div class="label">北京时间（Asia/Shanghai）</div>
+          <div class="value" data-tz="Asia/Shanghai" id="tz_beijing">加载中…</div>
+          <div class="chips" style="margin-top:10px;">
+            <a class="chip" href="./map.html?city=beijing">在地图中查看</a>
+          </div>
+        </div>
+
+        <div class="stat">
+          <div class="label">伦敦时间（Europe/London）</div>
+          <div class="value" data-tz="Europe/London" id="tz_london">加载中…</div>
+          <div class="chips" style="margin-top:10px;">
+            <a class="chip" href="./map.html?city=london">在地图中查看</a>
+          </div>
+        </div>
+
+        <div class="stat">
+          <div class="label">纽约时间（America/New_York）</div>
+          <div class="value" data-tz="America/New_York" id="tz_ny">加载中…</div>
+          <div class="chips" style="margin-top:10px;">
+            <a class="chip" href="./map.html?city=newyork">在地图中查看</a>
+          </div>
+        </div>
+
+        <div class="stat">
+          <div class="label">洛杉矶时间（America/Los_Angeles）</div>
+          <div class="value" data-tz="America/Los_Angeles" id="tz_la">加载中…</div>
+          <div class="chips" style="margin-top:10px;">
+            <a class="chip" href="./map.html?city=la">在地图中查看</a>
+          </div>
+        </div>
       </div>
 
       <p class="tip" style="margin-top:12px;">
-        小提示：如果你添加了更多页面（比如 <code>about.html</code>、<code>gallery.html</code>），
-        只要也放在仓库根目录，然后在这里加个链接就行。
+        想加更多城市：复制一个 stat 块，改 <code>data-tz</code> 和地图链接里的 <code>?city=xxx</code> 就行。
       </p>
     </section>
 
     <section id="about" class="card">
-      <h2>关于这个站</h2>
+      <h2>关于</h2>
       <ul class="list">
-        <li>目的：练习 GitHub Pages 的发布流程</li>
-        <li>形式：静态站点（不依赖服务器）</li>
-        <li>内容：一段说明 + 一点点交互 + 小作品入口</li>
+        <li>世界时间：用浏览器的 Intl 时区格式化</li>
+        <li>地图：Leaflet + OpenStreetMap（纯前端）</li>
+        <li>行星：Three.js 交互演示（加了暂停按钮）</li>
       </ul>
-      <p class="tip">
-        你可以随便改文字、换配色、加图片、加更多页面。静态网页最爽的就是：改完再 push 一下就更新。
-      </p>
-    </section>
-
-    <section id="log" class="card">
-      <h2>小记</h2>
-      <div class="timeline">
-        <div class="item">
-          <div class="dot"></div>
-          <div class="content">
-            <div class="title">第 1 天：发布成功</div>
-            <div class="desc">把静态文件上传到 GitHub，然后开启 Pages。第一次上线就像点亮一盏灯。</div>
-          </div>
-        </div>
-        <div class="item">
-          <div class="dot"></div>
-          <div class="content">
-            <div class="title">第 2 天：加入小作品</div>
-            <div class="desc">添加了行星运动与地图页面，并在首页做入口，方便访问。</div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <section id="links" class="card">
-      <h2>链接</h2>
-      <p>可以放你的社交账号、博客、收藏的站点等：</p>
-      <div class="chips">
-        <a class="chip" href="https://github.com/" target="_blank" rel="noreferrer">GitHub</a>
-        <a class="chip" href="https://docs.github.com/pages" target="_blank" rel="noreferrer">Pages 文档</a>
-        <a class="chip" href="https://developer.mozilla.org/" target="_blank" rel="noreferrer">MDN Web Docs</a>
-      </div>
     </section>
 
     <footer class="footer">
-      <p>© <span id="year"></span> • 这是一次静态网页尝试。愿你从这里开始，搭出自己的小宇宙。</p>
+      <p>© <span id="year"></span> • 玩一玩就会了。</p>
     </footer>
   </main>
 
