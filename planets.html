@@ -2,31 +2,382 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>全代码生成版太阳系 (Procedural Solar System)</title>
-
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>3D 交互式太阳系 (Improved)</title>
   <style>
-    body { margin: 0; overflow: hidden; background-color: #000; }
-    #info {
-      position: absolute; top: 10px; width: 100%; text-align: center;
-      color: #ccc; font-family: sans-serif; pointer-events: none; z-index: 10;
-      text-shadow: 1px 1px 2px black;
+    body { margin: 0; overflow: hidden; background:#000; }
+    #info{
+      position:absolute; top:10px; width:100%; text-align:center;
+      color:#ddd; font-family: Arial, "Microsoft YaHei", sans-serif;
+      pointer-events:none; z-index:10; text-shadow: 1px 1px 2px #000;
+      line-height: 1.35;
     }
+    #info .small{ font-size: 12px; opacity: .85; }
   </style>
-
-  <!-- three.js（保持你原来的版本） -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <!-- OrbitControls（也保持你原来的版本） -->
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 </head>
 
 <body>
   <div id="info">
-    <h3>全代码生成版 (无需下载图片)</h3>
-    <p>左键旋转 | 滚轮缩放 | 右键平移</p>
+    <div><b>3D 太阳系模拟（纹理增强版）</b></div>
+    <div class="small">左键旋转 | 滚轮缩放 | 右键平移</div>
   </div>
 
-  <!-- 你的主逻辑（拆出去放 planets.js） -->
-  <script src="./planets.js"></script>
+  <script>
+    // ========= 基础场景 =========
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x060812, 0.00055);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 3000);
+    camera.position.set(0, 150, 280);
+
+    const renderer = new THREE.WebGLRenderer({ antialias:true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.outputEncoding = THREE.sRGBEncoding; // 颜色更真实
+    document.body.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.minDistance = 80;
+    controls.maxDistance = 900;
+
+    // ========= 灯光（更柔和一点）=========
+    const ambient = new THREE.AmbientLight(0xffffff, 0.25);
+    scene.add(ambient);
+
+    const sunLight = new THREE.PointLight(0xffffff, 2.2, 2500);
+    scene.add(sunLight);
+
+    // ========= 小工具：程序化纹理（不依赖外部图片）=========
+    function makeCanvasTexture(drawFn, size=512){
+      const c = document.createElement("canvas");
+      c.width = c.height = size;
+      const g = c.getContext("2d");
+      drawFn(g, size);
+      const tex = new THREE.CanvasTexture(c);
+      tex.encoding = THREE.sRGBEncoding;
+      tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+      tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+      tex.needsUpdate = true;
+      return tex;
+    }
+
+    function rand(seed){
+      // 简单可复现随机（避免每次刷新差太多）
+      let s = seed >>> 0;
+      return () => (s = (s * 1664525 + 1013904223) >>> 0) / 4294967296;
+    }
+
+    function textureRock(baseHex, seed){
+      const r = rand(seed);
+      return makeCanvasTexture((g, n) => {
+        g.fillStyle = baseHex;
+        g.fillRect(0,0,n,n);
+        const img = g.getImageData(0,0,n,n);
+        const d = img.data;
+        for(let i=0;i<d.length;i+=4){
+          const noise = (r()-0.5) * 60;
+          d[i]   = Math.max(0, Math.min(255, d[i]   + noise));
+          d[i+1] = Math.max(0, Math.min(255, d[i+1] + noise));
+          d[i+2] = Math.max(0, Math.min(255, d[i+2] + noise));
+        }
+        g.putImageData(img,0,0);
+      });
+    }
+
+    function textureEarth(seed){
+      const r = rand(seed);
+      return makeCanvasTexture((g,n)=>{
+        // 海洋底色
+        g.fillStyle = "#1a3b8f";
+        g.fillRect(0,0,n,n);
+
+        // 陆地：随机斑块
+        for(let i=0;i<220;i++){
+          const x = r()*n, y=r()*n;
+          const w = 20 + r()*90;
+          const h = 12 + r()*70;
+          g.fillStyle = `rgba(${40+Math.floor(r()*60)}, ${120+Math.floor(r()*80)}, ${40+Math.floor(r()*40)}, 0.85)`;
+          g.beginPath();
+          g.ellipse(x,y,w,h, r()*Math.PI, 0, Math.PI*2);
+          g.fill();
+        }
+
+        // 冰帽
+        const cap = g.createRadialGradient(n*0.5, n*0.03, 0, n*0.5, n*0.03, n*0.18);
+        cap.addColorStop(0, "rgba(240,240,255,0.95)");
+        cap.addColorStop(1, "rgba(240,240,255,0)");
+        g.fillStyle = cap; g.fillRect(0,0,n,n);
+
+        const cap2 = g.createRadialGradient(n*0.5, n*0.97, 0, n*0.5, n*0.97, n*0.18);
+        cap2.addColorStop(0, "rgba(240,240,255,0.95)");
+        cap2.addColorStop(1, "rgba(240,240,255,0)");
+        g.fillStyle = cap2; g.fillRect(0,0,n,n);
+
+        // 轻微噪点增细节
+        const img = g.getImageData(0,0,n,n);
+        const d = img.data;
+        for(let i=0;i<d.length;i+=4){
+          const noise = (r()-0.5) * 18;
+          d[i]   = Math.max(0, Math.min(255, d[i]   + noise));
+          d[i+1] = Math.max(0, Math.min(255, d[i+1] + noise));
+          d[i+2] = Math.max(0, Math.min(255, d[i+2] + noise));
+        }
+        g.putImageData(img,0,0);
+      });
+    }
+
+    function textureClouds(seed){
+      const r = rand(seed);
+      return makeCanvasTexture((g,n)=>{
+        g.clearRect(0,0,n,n);
+        for(let i=0;i<600;i++){
+          const x=r()*n, y=r()*n;
+          const rr=6 + r()*26;
+          const a=0.04 + r()*0.08;
+          const grd=g.createRadialGradient(x,y,0,x,y,rr);
+          grd.addColorStop(0, `rgba(255,255,255,${a})`);
+          grd.addColorStop(1, "rgba(255,255,255,0)");
+          g.fillStyle=grd;
+          g.beginPath(); g.arc(x,y,rr,0,Math.PI*2); g.fill();
+        }
+      });
+    }
+
+    function textureStriped(base1, base2, seed){
+      const r = rand(seed);
+      return makeCanvasTexture((g,n)=>{
+        // 条纹背景
+        for(let y=0;y<n;y++){
+          const t = y/n;
+          const s = (Math.sin(t*TAU*10 + r()*2) * 0.5 + 0.5);
+          g.fillStyle = s>0.5 ? base1 : base2;
+          g.fillRect(0,y,n,1);
+        }
+        // 加噪点
+        const img = g.getImageData(0,0,n,n);
+        const d = img.data;
+        for(let i=0;i<d.length;i+=4){
+          const noise = (r()-0.5) * 30;
+          d[i]   = Math.max(0, Math.min(255, d[i]   + noise));
+          d[i+1] = Math.max(0, Math.min(255, d[i+1] + noise));
+          d[i+2] = Math.max(0, Math.min(255, d[i+2] + noise));
+        }
+        g.putImageData(img,0,0);
+      });
+    }
+
+    function ringTexture(seed){
+      const r = rand(seed);
+      return makeCanvasTexture((g,n)=>{
+        g.clearRect(0,0,n,n);
+        const cx=n/2, cy=n/2;
+        for(let i=0;i<220;i++){
+          const rad = (i/220);
+          const alpha = 0.07 + (1-rad)*0.25 + (r()-0.5)*0.02;
+          const gray = 160 + Math.floor((r()-0.5)*30);
+          g.strokeStyle = `rgba(${gray},${gray},${gray},${Math.max(0,alpha)})`;
+          g.lineWidth = 2;
+          g.beginPath();
+          g.arc(cx,cy, rad*(n*0.48), 0, Math.PI*2);
+          g.stroke();
+        }
+      }, 512);
+    }
+
+    const TAU = Math.PI * 2;
+
+    // ========= 星空（更丰富：随机颜色与亮度）=========
+    function addStars(count=12000){
+      const geo = new THREE.BufferGeometry();
+      const pos = new Float32Array(count*3);
+      const col = new Float32Array(count*3);
+      const r = rand(12345);
+
+      for(let i=0;i<count;i++){
+        const x = (r()-0.5)*2600;
+        const y = (r()-0.5)*2600;
+        const z = (r()-0.5)*2600;
+        pos[i*3+0]=x; pos[i*3+1]=y; pos[i*3+2]=z;
+
+        const t = r();
+        let c = new THREE.Color(0xffffff);
+        if (t>0.85) c.setHex(0xaabfff);
+        else if (t>0.70) c.setHex(0xffe1b5);
+        const brightness = 0.6 + r()*0.8;
+        col[i*3+0]=c.r*brightness;
+        col[i*3+1]=c.g*brightness;
+        col[i*3+2]=c.b*brightness;
+      }
+
+      geo.setAttribute("position", new THREE.BufferAttribute(pos,3));
+      geo.setAttribute("color", new THREE.BufferAttribute(col,3));
+
+      const mat = new THREE.PointsMaterial({
+        size: 1.6,
+        vertexColors: true,
+        transparent: true,
+        opacity: 0.95,
+        sizeAttenuation: true
+      });
+
+      scene.add(new THREE.Points(geo, mat));
+    }
+    addStars();
+
+    // ========= 太阳：本体 + 光晕 =========
+    const sunGeo = new THREE.SphereGeometry(15, 48, 48);
+    const sunMat = new THREE.MeshBasicMaterial({ color: 0xffb14a });
+    const sun = new THREE.Mesh(sunGeo, sunMat);
+    scene.add(sun);
+
+    sunLight.position.copy(sun.position);
+
+    // 光晕 sprite
+    (function addSunGlow(){
+      const c = document.createElement("canvas");
+      c.width=c.height=128;
+      const g=c.getContext("2d");
+      const grd=g.createRadialGradient(64,64,0,64,64,64);
+      grd.addColorStop(0, "rgba(255,200,90,1)");
+      grd.addColorStop(0.35, "rgba(255,140,30,0.5)");
+      grd.addColorStop(1, "rgba(0,0,0,0)");
+      g.fillStyle=grd;
+      g.fillRect(0,0,128,128);
+
+      const tex = new THREE.CanvasTexture(c);
+      tex.encoding = THREE.sRGBEncoding;
+
+      const sm = new THREE.SpriteMaterial({
+        map: tex,
+        transparent: true,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      });
+      const sp = new THREE.Sprite(sm);
+      sp.scale.set(140,140,1);
+      scene.add(sp);
+    })();
+
+    // ========= 行星数据（你原来的结构基础上升级为纹理材质）=========
+    const planetsData = [
+      { name:"水星", size:2.0, distance:28,  speed:0.040, tex: ()=>textureRock("#7e7e7e", 1) },
+      { name:"金星", size:3.5, distance:45,  speed:0.015, tex: ()=>textureRock("#d6b15a", 2) },
+      { name:"地球", size:3.8, distance:65,  speed:0.010, tex: ()=>textureEarth(3), clouds:true },
+      { name:"火星", size:3.0, distance:85,  speed:0.008, tex: ()=>textureRock("#b94a2b", 4) },
+      { name:"木星", size:10,  distance:130, speed:0.002, tex: ()=>textureStriped("#d9b38c", "#c79c74", 5) },
+      { name:"土星", size:8.5, distance:170, speed:0.0015, tex: ()=>textureStriped("#f2c88f", "#d9b076", 6), ring:true },
+      { name:"天王星", size:6.0, distance:210, speed:0.001, tex: ()=>textureRock("#6fd7d7", 7) },
+      { name:"海王星", size:5.8, distance:250, speed:0.0008, tex: ()=>textureRock("#2f58c9", 8) }
+    ];
+
+    const planets = [];
+
+    // 轨道线（比 EllipseCurve 更直观：直接用 3D 圆环线）
+    function addOrbit(distance){
+      const seg = 160;
+      const pts = [];
+      for(let i=0;i<=seg;i++){
+        const a = (i/seg)*TAU;
+        pts.push(new THREE.Vector3(Math.cos(a)*distance, 0, Math.sin(a)*distance));
+      }
+      const geo = new THREE.BufferGeometry().setFromPoints(pts);
+      const mat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent:true, opacity: 0.12 });
+      const line = new THREE.Line(geo, mat);
+      scene.add(line);
+    }
+
+    planetsData.forEach((d, idx) => {
+      addOrbit(d.distance);
+
+      const pivot = new THREE.Object3D();
+      pivot.rotation.y = Math.random()*TAU;
+      scene.add(pivot);
+
+      const mapTex = d.tex();
+
+      const mat = new THREE.MeshStandardMaterial({
+        map: mapTex,
+        roughness: 0.85,
+        metalness: 0.02
+      });
+
+      const mesh = new THREE.Mesh(new THREE.SphereGeometry(d.size, 48, 48), mat);
+      mesh.position.x = d.distance;
+
+      // 让不同星球轴倾角略不同（观感更像）
+      mesh.rotation.z = (idx%3===0 ? 0.08 : idx%3===1 ? -0.12 : 0.18);
+
+      pivot.add(mesh);
+
+      // 地球云层（透明球壳）
+      if (d.clouds){
+        const cloudTex = textureClouds(99);
+        const cloudMat = new THREE.MeshStandardMaterial({
+          map: cloudTex,
+          transparent: true,
+          opacity: 0.85,
+          depthWrite: false
+        });
+        const cloud = new THREE.Mesh(new THREE.SphereGeometry(d.size*1.02, 48, 48), cloudMat);
+        mesh.add(cloud);
+
+        // 大气层（淡淡蓝光）
+        const atmoMat = new THREE.MeshBasicMaterial({
+          color: 0x6cc6ff,
+          transparent: true,
+          opacity: 0.10,
+          blending: THREE.AdditiveBlending
+        });
+        const atmo = new THREE.Mesh(new THREE.SphereGeometry(d.size*1.06, 48, 48), atmoMat);
+        mesh.add(atmo);
+      }
+
+      // 土星环：用渐变纹理，层次更像
+      if (d.ring){
+        const tex = ringTexture(777);
+        const ringGeo = new THREE.RingGeometry(d.size*1.35, d.size*2.25, 96);
+        const ringMat = new THREE.MeshStandardMaterial({
+          map: tex,
+          transparent: true,
+          opacity: 0.95,
+          side: THREE.DoubleSide,
+          roughness: 1.0,
+          metalness: 0.0
+        });
+        const ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.rotation.x = Math.PI/2;
+        mesh.add(ring);
+      }
+
+      planets.push({ pivot, mesh, speed: d.speed });
+    });
+
+    // ========= 动画循环 =========
+    function animate(){
+      requestAnimationFrame(animate);
+
+      // 行星公转 + 自转
+      planets.forEach(p => {
+        p.pivot.rotation.y += p.speed;
+        p.mesh.rotation.y += 0.02;
+      });
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // 自适应
+    window.addEventListener("resize", ()=>{
+      camera.aspect = window.innerWidth/window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    });
+  </script>
 </body>
 </html>
