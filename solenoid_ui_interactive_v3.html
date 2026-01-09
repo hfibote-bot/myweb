@@ -1,0 +1,1123 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>螺线管(多层螺旋)磁场可交互计算器（纯HTML）</title>
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+  <style>
+    :root{
+      --bg:#0b1020;
+      --panel:#0f1733;
+      --panel2:#0c132b;
+      --text:#e8ecff;
+      --muted:#b6c2ff;
+      --border:rgba(255,255,255,.12);
+      --accent:#7aa2ff;
+      --danger:#ff6b6b;
+      --ok:#2fe37a;
+    }
+    html,body{height:100%; margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,Noto Sans,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";}
+    body{background:var(--bg); color:var(--text);}
+    .wrap{display:flex; height:100vh; overflow:hidden;}
+    .left{
+      width:420px; min-width:320px; max-width:600px;
+      border-right:1px solid var(--border);
+      background:linear-gradient(180deg, var(--panel), var(--panel2));
+      padding:14px 14px 10px 14px;
+      overflow:auto;
+    }
+    .right{flex:1; min-width:0; background:var(--bg);}
+    h1{font-size:16px; margin:0 0 10px 0; font-weight:900;}
+    .hint{font-size:12px; color:var(--muted); line-height:1.45; margin-bottom:10px;}
+    .card{
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:12px;
+      margin:10px 0;
+      background:rgba(255,255,255,.03);
+    }
+    .card h2{font-size:13px; margin:0 0 8px 0; font-weight:900; color:var(--text);}
+    .grid{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap:10px 10px;
+      align-items:end;
+    }
+    label{display:block; font-size:12px; color:var(--muted); margin:0 0 4px 2px;}
+    input[type="number"], input[type="text"], select{
+      width:100%;
+      padding:8px 10px;
+      border-radius:10px;
+      border:1px solid var(--border);
+      background:rgba(0,0,0,.20);
+      color:var(--text);
+      outline:none;
+      box-sizing:border-box;
+    }
+    input[disabled]{opacity:.55; cursor:not-allowed;}
+    input[type="number"]:focus, select:focus{
+      border-color:rgba(122,162,255,.7);
+      box-shadow:0 0 0 3px rgba(122,162,255,.16);
+    }
+    .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+    .btn{
+      appearance:none; border:1px solid var(--border);
+      background:rgba(122,162,255,.16);
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:12px;
+      cursor:pointer;
+      font-weight:900;
+      transition:transform .05s ease;
+    }
+    .btn:active{transform:translateY(1px);}
+    .btn.primary{background:rgba(122,162,255,.28); border-color:rgba(122,162,255,.55);}
+    .btn.ghost{background:rgba(255,255,255,.04);}
+    .btn.danger{background:rgba(255,107,107,.18); border-color:rgba(255,107,107,.55);}
+    .btn:disabled{opacity:.55; cursor:not-allowed;}
+    .pill{
+      font-size:12px;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid var(--border);
+      background:rgba(255,255,255,.04);
+      color:var(--muted);
+      display:inline-flex;
+      gap:8px;
+      align-items:center;
+    }
+    .kv{
+      display:grid; grid-template-columns: 1fr 1fr;
+      gap:8px 10px;
+      font-size:12px;
+      color:var(--muted);
+    }
+    .kv b{color:var(--text); font-weight:950;}
+    .status{font-size:12px; line-height:1.45; margin-top:8px; color:var(--muted);}
+    .status .ok{color:var(--ok); font-weight:950;}
+    .status .bad{color:var(--danger); font-weight:950;}
+    .chk{
+      display:flex; gap:8px; align-items:center;
+      font-size:12px; color:var(--muted);
+      user-select:none;
+      margin:4px 0;
+    }
+    .chk input{transform:translateY(1px);}
+    #plot{width:100%; height:100vh;}
+    .small{font-size:12px; color:var(--muted); line-height:1.55;}
+    details summary{cursor:pointer; color:var(--text); font-weight:950;}
+    details{margin-top:8px;}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;}
+    .divider{height:1px; background:var(--border); margin:10px 0;}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="left">
+    <h1>螺线管磁场（纯HTML：参数面板 + 3D交互）</h1>
+    <div class="hint">
+      本版更新：<br>
+      1）方向箭头<strong>颜色=该点的|B|颜色</strong>（与点云一致），不再一片白；<br>
+      2）“自动计算域”的 margin 允许<strong>为负</strong>：可只看内腔/中间区域，避免外圈“最暗点”干扰；<br>
+      3）新增“显示阈值”：可过滤掉低场点，让色标更聚焦于你关心的区域。
+    </div>
+
+    <div class="card">
+      <h2>几何参数（单位：mm）</h2>
+      <div class="grid">
+        <div>
+          <label>内半径 R_in（=内径/2）</label>
+          <input type="number" id="inner_radius_mm" value="15" step="0.1" min="0">
+        </div>
+        <div>
+          <label>径向层数</label>
+          <input type="number" id="n_layers" value="4" step="1" min="1" max="30">
+        </div>
+
+        <div>
+          <label>每层匝数</label>
+          <input type="number" id="turns_per_layer" value="50" step="1" min="1" max="6000">
+        </div>
+        <div>
+          <label>匝距 pitch</label>
+          <input type="number" id="pitch_mm" value="6" step="0.1" min="0.001">
+        </div>
+
+        <div>
+          <label>导体外径 OD</label>
+          <input type="number" id="wire_od_mm" value="6" step="0.1" min="0.1">
+        </div>
+        <div>
+          <label>导体内径 ID（空心水道，仅显示）</label>
+          <input type="number" id="wire_id_mm" value="4" step="0.1" min="0">
+        </div>
+
+        <div>
+          <label>层间径向间隙 gap_r</label>
+          <input type="number" id="gap_radial_mm" value="0.2" step="0.1">
+        </div>
+        <div>
+          <label>每层起始角度偏移（deg）</label>
+          <input type="number" id="layer_phase_deg" value="0" step="1">
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:10px;">
+        <span class="pill">推导值</span>
+      </div>
+      <div class="kv" style="margin-top:8px;">
+        <div>线圈长度 L ≈ <b id="derived_len">-</b></div>
+        <div>外半径 R_out ≈ <b id="derived_rout">-</b></div>
+        <div>总匝数 N = <b id="derived_ntotal">-</b></div>
+        <div>安匝 NI = <b id="derived_ni">-</b></div>
+      </div>
+
+      <div class="chk" title="显示管状网格更像水冷铜管，但更慢">
+        <input type="checkbox" id="show_tube" checked>
+        <label for="show_tube" style="margin:0;">显示管状导体（较慢）</label>
+      </div>
+      <div class="chk" title="半透明便于看到“空心水道”的感觉">
+        <input type="checkbox" id="show_hollow" checked>
+        <label for="show_hollow" style="margin:0;">半透明 + 显示内孔（视觉表达）</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>电流与磁场显示/计算域</h2>
+      <div class="grid">
+        <div>
+          <label>电流 I（A）</label>
+          <input type="number" id="current_A" value="64" step="0.1">
+        </div>
+        <div>
+          <label>颜色显示单位</label>
+          <select id="field_unit">
+            <option value="T">Tesla (T)</option>
+            <option value="G" selected>Gauss (G)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="chk" title="自动把计算域与线圈外形关联：半径≈R_out+margin，长度≈L+2margin。margin可为负，表示只看内腔/中间区域。">
+        <input type="checkbox" id="auto_domain" checked>
+        <label for="auto_domain" style="margin:0;"><b>自动计算域</b>（≈ 外半径/长度 + margin）</label>
+      </div>
+
+      <div class="grid" style="margin-top:8px;">
+        <div>
+          <label>计算域 margin（mm，可为负）</label>
+          <input type="number" id="domain_margin_mm" value="30" step="1">
+        </div>
+        <div>
+          <label>磁场采样半径（mm）</label>
+          <input type="number" id="field_radius_mm" value="60" step="1" min="1">
+        </div>
+
+        <div>
+          <label>磁场采样长度（mm）</label>
+          <input type="number" id="field_length_mm" value="300" step="1" min="1">
+        </div>
+        <div>
+          <label>点大小（点云）</label>
+          <input type="number" id="marker_size" value="3" step="1" min="1" max="12">
+        </div>
+      </div>
+
+      <div class="grid" style="margin-top:8px;">
+        <div>
+          <label>显示阈值（0~1，按最大值比例）</label>
+          <input type="number" id="display_min_frac" value="0" step="0.05" min="0" max="0.99">
+        </div>
+        <div class="small" style="margin-top:18px;">
+          例：0.2 表示只显示 ≥ 20%·Bmax 的点（过滤外圈暗点）
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:10px; align-items:flex-start;">
+        <div style="flex:1; min-width:170px;">
+          <label>点云密度（z × r × θ）</label>
+          <div class="row">
+            <input type="number" id="pts_nz" value="15" step="1" min="2" style="width:72px">
+            <input type="number" id="pts_nr" value="6" step="1" min="2" style="width:72px">
+            <input type="number" id="pts_nt" value="12" step="1" min="1" style="width:72px">
+          </div>
+          <div class="small">点越多越慢（建议总点数 &lt; 4000）</div>
+        </div>
+        <div style="flex:1; min-width:170px;">
+          <label>方向箭头密度（z × r × θ）</label>
+          <div class="row">
+            <input type="number" id="dir_nz" value="10" step="1" min="2" style="width:72px">
+            <input type="number" id="dir_nr" value="4" step="1" min="2" style="width:72px">
+            <input type="number" id="dir_nt" value="8" step="1" min="1" style="width:72px">
+          </div>
+          <div class="small">箭头越多越清晰，但也更卡（建议 &lt; 700）</div>
+        </div>
+      </div>
+
+      <div class="grid" style="margin-top:8px;">
+        <div>
+          <label>方向箭头长度（mm）</label>
+          <input type="number" id="dir_len_mm" value="8" step="1" min="1">
+        </div>
+        <div class="chk" style="margin-top:18px;">
+          <input type="checkbox" id="dir_head" checked>
+          <label for="dir_head" style="margin:0;">箭头带头部</label>
+        </div>
+      </div>
+
+      <details>
+        <summary>精度/性能（展开）</summary>
+        <div style="margin-top:10px;">
+          <div class="grid">
+            <div>
+              <label>可视化：每匝点数</label>
+              <input type="number" id="pts_per_turn_vis" value="18" step="1" min="6" max="80">
+            </div>
+            <div>
+              <label>磁场积分：每匝分段数</label>
+              <input type="number" id="seg_per_turn_field" value="40" step="5" min="10" max="220">
+            </div>
+            <div>
+              <label>管状导体：圆周分段</label>
+              <input type="number" id="tube_sides" value="12" step="1" min="6" max="36">
+            </div>
+            <div>
+              <label>数值稳定 epsilon（m）</label>
+              <input type="number" id="epsilon_m" value="1e-6" step="1e-6" min="1e-9">
+            </div>
+          </div>
+          <div class="small" style="margin-top:8px;">
+            精度关键：<span class="mono">seg_per_turn_field</span> 越大越准但越慢；建议先用 30~60 调试，最后再增大。
+          </div>
+        </div>
+      </details>
+    </div>
+
+    <div class="card">
+      <h2>操作</h2>
+      <div class="row">
+        <button class="btn primary" id="btn_update">重新计算 / 更新图像</button>
+        <button class="btn ghost" id="btn_toggle_dir">显示/隐藏 方向箭头</button>
+        <button class="btn danger" id="btn_reset">恢复默认参数</button>
+      </div>
+
+      <div class="status" id="status">状态：等待计算…</div>
+
+      <div class="card" style="margin-top:10px;">
+        <h2>中心磁场（r=0,z=0）</h2>
+        <div class="kv">
+          <div>Bx = <b id="bx0">-</b></div>
+          <div>By = <b id="by0">-</b></div>
+          <div>Bz = <b id="bz0">-</b></div>
+          <div>|B| = <b id="b0">-</b></div>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="small">
+          <b>轴线上最大值检查（帮助判断“中心是不是最大”）</b><br>
+          轴线上最大 |B| 出现在 z = <b id="axis_zmax">-</b>，值 = <b id="axis_bmax">-</b><br>
+          <span class="small">注：这是只在 r=0 轴线上搜索（不会被“靠近导体的巨大|B|”影响）。</span>
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="small">
+          对照（sanity-check）：<br>
+          <span class="mono">B_long ≈ μ0·(N/L)·I</span>（长螺线管近似）<br>
+          <span class="mono">B_finite_sheet</span>（有限长度薄电流片近似）
+          <div style="margin-top:6px;">
+            <span class="mono">B_long ≈ </span><b id="b_long">-</b>&nbsp;&nbsp;
+            <span class="mono">B_finite_sheet ≈ </span><b id="b_sheet">-</b>
+          </div>
+        </div>
+      </div>
+
+      <details open>
+        <summary>使用方法 / 计算原理 / 注意事项</summary>
+        <div class="small" style="margin-top:10px;">
+          <b>使用方法</b><br>
+          1）左侧设置线圈参数与电流。<br>
+          2）建议保持“<b>自动计算域</b>”勾选：<span class="mono">R≈R_out+margin</span>，<span class="mono">L≈L_coil+2·margin</span>。<br>
+             - margin 可为负：例如内径很大时，只想看等离子体柱附近（小半径区域），就把 margin 设成负值，让计算域缩到内腔。<br>
+          3）如果外圈暗点干扰判断：提高“<b>显示阈值</b>”（比如 0.1~0.3），就会过滤掉低场点并让色标更聚焦。<br>
+          4）点“重新计算/更新图像”。右侧用鼠标旋转/缩放/平移。<br>
+          5）点“显示/隐藏 方向箭头”可叠加方向。箭头颜色与点云同色标（表示 |B|）。<br><br>
+
+          <b>计算原理（物理）</b><br>
+          - 使用 Biot–Savart 定律：<span class="mono">dB = (μ0 I / 4π) · (dl × r) / |r|^3</span>。<br>
+          - 将螺旋线圈中心线离散成许多小线段，对每段求贡献并矢量相加得到总磁场。<br>
+          - 导体“空心ID”只用于几何显示（水冷通道），磁场计算采用“线电流”模型。<br><br>
+
+          <b>注意事项</b><br>
+          - 适用：直流/低频磁静场、空气/真空环境（μ≈μ0）。<br>
+          - 不含：铁磁材料、涡流、引线/跨层真实过渡导线（需要可继续加）。<br>
+          - 常见误解：<u>全空间最大 |B| 通常在靠近导体处，而不是中心</u>；如果你关心等离子体轴心，重点看“轴线上最大值检查”和 r 小范围内的场分布。<br>
+        </div>
+      </details>
+    </div>
+
+    <div class="small" style="opacity:.85;">
+      提醒：如果你把线圈半径做得很大而长度较短，中心场会明显变小（这是几何决定的）。对 helicon 设计，通常更关心“等离子体柱附近（小 r）”的轴向场强与梯度。
+    </div>
+  </div>
+
+  <div class="right">
+    <div id="plot"></div>
+  </div>
+</div>
+
+<script>
+/** =============== 工具函数 =============== */
+function toNumber(id){ return Number(document.getElementById(id).value); }
+function setText(id, txt){ document.getElementById(id).textContent = txt; }
+function fmtB(valTesla, unitSel){
+  if (!isFinite(valTesla)) return "NaN";
+  if (unitSel === "G") return (valTesla*1e4).toFixed(3) + " G";
+  return valTesla.toFixed(6) + " T";
+}
+function nowMs(){ return performance.now(); }
+
+/** =============== 颜色：Viridis插值（与Plotly Viridis接近） =============== */
+const VIRIDIS = [
+  [0.0,   "#440154"],
+  [0.111, "#482878"],
+  [0.222, "#3e4989"],
+  [0.333, "#31688e"],
+  [0.444, "#26828e"],
+  [0.555, "#1f9e89"],
+  [0.666, "#35b779"],
+  [0.777, "#6ece58"],
+  [0.888, "#b5de2b"],
+  [1.0,   "#fde725"],
+];
+function hexToRgb(hex){
+  const h = hex.replace("#","");
+  const v = parseInt(h,16);
+  return [(v>>16)&255, (v>>8)&255, v&255];
+}
+function lerp(a,b,t){ return a + (b-a)*t; }
+function viridisRgb(t){
+  t = Math.max(0, Math.min(1, t));
+  for (let i=0; i<VIRIDIS.length-1; i++){
+    const a = VIRIDIS[i], b = VIRIDIS[i+1];
+    if (t >= a[0] && t <= b[0]){
+      const tt = (t - a[0]) / (b[0]-a[0] + 1e-12);
+      const ra = hexToRgb(a[1]), rb = hexToRgb(b[1]);
+      const r = Math.round(lerp(ra[0], rb[0], tt));
+      const g = Math.round(lerp(ra[1], rb[1], tt));
+      const bb = Math.round(lerp(ra[2], rb[2], tt));
+      return [r,g,bb];
+    }
+  }
+  return hexToRgb(VIRIDIS[VIRIDIS.length-1][1]);
+}
+function viridisRgba(t, alpha){
+  const rgb = viridisRgb(t);
+  return `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alpha})`;
+}
+
+/** =============== 参数读取与推导 =============== */
+function derivedGeometry(p){
+  const Lmm = p.turns_per_layer * p.pitch_mm;
+  const Routmm = p.inner_radius_mm + p.wire_od_mm + (p.n_layers-1)*(p.wire_od_mm + p.gap_radial_mm);
+  const Ntotal = p.n_layers * p.turns_per_layer;
+  return {Lmm, Routmm, Ntotal};
+}
+
+function readParams(){
+  const p = {
+    inner_radius_mm: toNumber("inner_radius_mm"),
+    n_layers: Math.round(toNumber("n_layers")),
+    turns_per_layer: Math.round(toNumber("turns_per_layer")),
+    pitch_mm: toNumber("pitch_mm"),
+    wire_od_mm: toNumber("wire_od_mm"),
+    wire_id_mm: toNumber("wire_id_mm"),
+    gap_radial_mm: toNumber("gap_radial_mm"),
+    layer_phase_deg: toNumber("layer_phase_deg"),
+    current_A: toNumber("current_A"),
+    field_unit: document.getElementById("field_unit").value,
+
+    auto_domain: document.getElementById("auto_domain").checked,
+    domain_margin_mm: toNumber("domain_margin_mm"),
+    field_radius_mm: toNumber("field_radius_mm"),
+    field_length_mm: toNumber("field_length_mm"),
+    marker_size: Math.round(toNumber("marker_size")),
+    display_min_frac: Math.max(0, Math.min(0.99, toNumber("display_min_frac"))),
+
+    pts_nz: Math.round(toNumber("pts_nz")),
+    pts_nr: Math.round(toNumber("pts_nr")),
+    pts_nt: Math.round(toNumber("pts_nt")),
+    dir_nz: Math.round(toNumber("dir_nz")),
+    dir_nr: Math.round(toNumber("dir_nr")),
+    dir_nt: Math.round(toNumber("dir_nt")),
+    dir_len_mm: toNumber("dir_len_mm"),
+    dir_head: document.getElementById("dir_head").checked,
+
+    pts_per_turn_vis: Math.round(toNumber("pts_per_turn_vis")),
+    seg_per_turn_field: Math.round(toNumber("seg_per_turn_field")),
+    tube_sides: Math.round(toNumber("tube_sides")),
+    epsilon_m: Number(document.getElementById("epsilon_m").value),
+
+    show_tube: document.getElementById("show_tube").checked,
+    show_hollow: document.getElementById("show_hollow").checked,
+  };
+
+  // apply auto domain (margin can be negative)
+  const d = derivedGeometry(p);
+  if (p.auto_domain){
+    const margin = p.domain_margin_mm;
+    p.field_radius_mm = Math.max(1, d.Routmm + margin);
+    p.field_length_mm = Math.max(1, d.Lmm + 2*margin);
+  }
+  return p;
+}
+
+function validateParams(p){
+  const errs = [];
+  if (!(p.inner_radius_mm >= 0)) errs.push("内半径必须 ≥ 0");
+  if (!(p.n_layers >= 1)) errs.push("层数必须 ≥ 1");
+  if (!(p.turns_per_layer >= 1)) errs.push("每层匝数必须 ≥ 1");
+  if (!(p.pitch_mm > 0)) errs.push("匝距必须 > 0");
+  if (!(p.wire_od_mm > 0)) errs.push("外径必须 > 0");
+  if (!(p.wire_id_mm >= 0)) errs.push("内径必须 ≥ 0");
+  if (p.wire_id_mm >= p.wire_od_mm) errs.push("内径必须 < 外径");
+  if (!(p.seg_per_turn_field >= 4)) errs.push("分段数太小");
+  if (!(p.pts_per_turn_vis >= 4)) errs.push("可视化点数太小");
+  if (!(p.field_radius_mm > 0 && p.field_length_mm > 0)) errs.push("磁场采样域必须 > 0");
+  if (!(p.epsilon_m > 0)) errs.push("epsilon 必须 > 0");
+  if (!(p.dir_len_mm > 0)) errs.push("方向箭头长度必须 > 0");
+  if (!(p.marker_size >= 1)) errs.push("点大小必须 ≥ 1");
+  return errs;
+}
+
+function updateDerivedUI(){
+  const pRaw = {
+    inner_radius_mm: toNumber("inner_radius_mm"),
+    n_layers: Math.round(toNumber("n_layers")),
+    turns_per_layer: Math.round(toNumber("turns_per_layer")),
+    pitch_mm: toNumber("pitch_mm"),
+    wire_od_mm: toNumber("wire_od_mm"),
+    gap_radial_mm: toNumber("gap_radial_mm"),
+    current_A: toNumber("current_A"),
+  };
+  const d = derivedGeometry(pRaw);
+  setText("derived_len", d.Lmm.toFixed(2) + " mm");
+  setText("derived_rout", d.Routmm.toFixed(2) + " mm");
+  setText("derived_ntotal", String(d.Ntotal));
+  setText("derived_ni", (d.Ntotal * pRaw.current_A).toFixed(2) + " A·turn");
+
+  const auto = document.getElementById("auto_domain").checked;
+  const margin = toNumber("domain_margin_mm");
+  const fr = document.getElementById("field_radius_mm");
+  const fl = document.getElementById("field_length_mm");
+  if (auto){
+    fr.value = Math.max(1, d.Routmm + margin).toFixed(0);
+    fl.value = Math.max(1, d.Lmm + 2*margin).toFixed(0);
+    fr.disabled = true;
+    fl.disabled = true;
+  }else{
+    fr.disabled = false;
+    fl.disabled = false;
+  }
+}
+
+/** =============== 几何构造：多层螺旋线 =============== */
+function buildCoilCenterlines(p){
+  const layers = [];
+  const segMid = [];
+  const segDl  = [];
+
+  const phase0 = p.layer_phase_deg * Math.PI/180;
+  const R_in_m = p.inner_radius_mm * 1e-3;
+  const pitch_m = p.pitch_mm * 1e-3;
+  const od_m = p.wire_od_mm * 1e-3;
+  const gap_m = p.gap_radial_mm * 1e-3;
+
+  const turns = p.turns_per_layer;
+  const z0 = -0.5 * turns * pitch_m;
+  const tMax = 2*Math.PI*turns;
+
+  const nVis = turns * p.pts_per_turn_vis + 1;
+  const nSeg = turns * p.seg_per_turn_field;
+  const nF = nSeg + 1;
+
+  for (let k=0; k<p.n_layers; k++){
+    const Rk = R_in_m + (od_m/2) + k*(od_m + gap_m);
+    const ph = phase0;
+
+    const xmm = new Array(nVis);
+    const ymm = new Array(nVis);
+    const zmm = new Array(nVis);
+
+    for (let i=0; i<nVis; i++){
+      const t = tMax * (i/(nVis-1));
+      const x = Rk*Math.cos(t+ph);
+      const y = Rk*Math.sin(t+ph);
+      const z = z0 + (pitch_m/(2*Math.PI))*t;
+      xmm[i] = x*1e3;
+      ymm[i] = y*1e3;
+      zmm[i] = z*1e3;
+    }
+    layers.push({xmm, ymm, zmm});
+
+    let px = 0, py = 0, pz = 0;
+    for (let i=0; i<nF; i++){
+      const t = tMax * (i/(nF-1));
+      const x = Rk*Math.cos(t+ph);
+      const y = Rk*Math.sin(t+ph);
+      const z = z0 + (pitch_m/(2*Math.PI))*t;
+      if (i>0){
+        const dlx = x - px;
+        const dly = y - py;
+        const dlz = z - pz;
+        const midx = 0.5*(x + px);
+        const midy = 0.5*(y + py);
+        const midz = 0.5*(z + pz);
+        segDl.push(dlx, dly, dlz);
+        segMid.push(midx, midy, midz);
+      }
+      px=x; py=y; pz=z;
+    }
+  }
+
+  return {
+    layers,
+    segMid_m: new Float64Array(segMid),
+    segDl_m: new Float64Array(segDl),
+    meta: {
+      coil_length_m: turns*pitch_m,
+      turns_total: p.n_layers*turns,
+      z0_m: -0.5*turns*pitch_m,
+      z1_m:  0.5*turns*pitch_m,
+    }
+  };
+}
+
+/** =============== Biot–Savart：离散线段叠加 =============== */
+function B_at_point_m(point_m, segMid_m, segDl_m, I, eps){
+  const mu0_over_4pi = 1e-7;
+  const sx = point_m[0], sy = point_m[1], sz = point_m[2];
+  let bx=0, by=0, bz=0;
+  const nSeg = segMid_m.length / 3;
+  const eps2 = eps*eps;
+  for (let i=0; i<nSeg; i++){
+    const j = 3*i;
+    const midx = segMid_m[j], midy = segMid_m[j+1], midz = segMid_m[j+2];
+    const dlx  = segDl_m[j],  dly  = segDl_m[j+1],  dlz  = segDl_m[j+2];
+
+    const rx = sx - midx;
+    const ry = sy - midy;
+    const rz = sz - midz;
+
+    const r2 = rx*rx + ry*ry + rz*rz + eps2;
+    const r = Math.sqrt(r2);
+    const inv_r3 = 1.0 / (r2 * r);
+
+    const cx = dly*rz - dlz*ry;
+    const cy = dlz*rx - dlx*rz;
+    const cz = dlx*ry - dly*rx;
+
+    bx += cx * inv_r3;
+    by += cy * inv_r3;
+    bz += cz * inv_r3;
+  }
+  const scale = mu0_over_4pi * I;
+  return [bx*scale, by*scale, bz*scale];
+}
+
+function buildCylindricalSamples(radius_m, length_m, nz, nr, nt){
+  const pts = [];
+  const z0 = -0.5*length_m;
+  const z1 =  0.5*length_m;
+  for (let iz=0; iz<nz; iz++){
+    const z = (nz===1) ? 0 : (z0 + (z1-z0)* (iz/(nz-1)));
+    for (let ir=0; ir<nr; ir++){
+      const r = (nr===1) ? 0 : (radius_m * (ir/(nr-1)));
+      if (r === 0){
+        pts.push({x:0, y:0, z});
+      }else{
+        for (let it=0; it<nt; it++){
+          const th = 2*Math.PI * (it/nt);
+          pts.push({x:r*Math.cos(th), y:r*Math.sin(th), z});
+        }
+      }
+    }
+  }
+  return pts;
+}
+
+function computeFieldOnSamples(samples_m, segMid_m, segDl_m, I, eps){
+  const n = samples_m.length;
+  const xmm = new Array(n), ymm=new Array(n), zmm=new Array(n);
+  const bx = new Array(n), by=new Array(n), bz=new Array(n);
+  const bmag = new Array(n);
+
+  for (let i=0; i<n; i++){
+    const p = samples_m[i];
+    const B = B_at_point_m([p.x,p.y,p.z], segMid_m, segDl_m, I, eps);
+    bx[i]=B[0]; by[i]=B[1]; bz[i]=B[2];
+    const bm = Math.sqrt(B[0]*B[0]+B[1]*B[1]+B[2]*B[2]);
+    bmag[i]=bm;
+    xmm[i]=p.x*1e3; ymm[i]=p.y*1e3; zmm[i]=p.z*1e3;
+  }
+  return {xmm, ymm, zmm, bx, by, bz, bmag_T: bmag};
+}
+
+function filterField(field, minB_T){
+  const x=[],y=[],z=[], bx=[],by=[],bz=[], bmag=[];
+  for (let i=0; i<field.bmag_T.length; i++){
+    if (field.bmag_T[i] >= minB_T){
+      x.push(field.xmm[i]); y.push(field.ymm[i]); z.push(field.zmm[i]);
+      bx.push(field.bx[i]); by.push(field.by[i]); bz.push(field.bz[i]);
+      bmag.push(field.bmag_T[i]);
+    }
+  }
+  return {xmm:x, ymm:y, zmm:z, bx, by, bz, bmag_T:bmag};
+}
+
+/** =============== 管状导体（Mesh3d） =============== */
+function tubeMeshFromCenterline(center_xmm, center_ymm, center_zmm, tubeRadius_mm, sides){
+  const n = center_xmm.length;
+  if (n < 2) return null;
+  const r = tubeRadius_mm;
+
+  const vx = [];
+  const vy = [];
+  const vz = [];
+  const ringIndex = new Array(n);
+
+  function norm3(ax,ay,az){
+    const s = Math.sqrt(ax*ax+ay*ay+az*az);
+    if (s===0) return [0,0,0];
+    return [ax/s, ay/s, az/s];
+  }
+  function cross(a,b){
+    return [
+      a[1]*b[2] - a[2]*b[1],
+      a[2]*b[0] - a[0]*b[2],
+      a[0]*b[1] - a[1]*b[0],
+    ];
+  }
+
+  for (let idx=0; idx<n; idx++){
+    ringIndex[idx] = vx.length;
+
+    const cx = center_xmm[idx], cy=center_ymm[idx], cz=center_zmm[idx];
+    let tx,ty,tz;
+    if (idx === 0){
+      tx = center_xmm[1]-center_xmm[0];
+      ty = center_ymm[1]-center_ymm[0];
+      tz = center_zmm[1]-center_zmm[0];
+    }else if (idx === n-1){
+      tx = center_xmm[n-1]-center_xmm[n-2];
+      ty = center_ymm[n-1]-center_ymm[n-2];
+      tz = center_zmm[n-1]-center_zmm[n-2];
+    }else{
+      tx = center_xmm[idx+1]-center_xmm[idx-1];
+      ty = center_ymm[idx+1]-center_ymm[idx-1];
+      tz = center_zmm[idx+1]-center_zmm[idx-1];
+    }
+    let T = norm3(tx,ty,tz);
+
+    let V = [0,0,1];
+    if (Math.abs(T[2]) > 0.95) V = [1,0,0];
+
+    let N = cross(V, T);
+    N = norm3(N[0],N[1],N[2]);
+    let B = cross(T, N);
+    B = norm3(B[0],B[1],B[2]);
+
+    for (let s=0; s<sides; s++){
+      const phi = 2*Math.PI*(s/sides);
+      const c = Math.cos(phi), si = Math.sin(phi);
+      const ox = r*(c*N[0] + si*B[0]);
+      const oy = r*(c*N[1] + si*B[1]);
+      const oz = r*(c*N[2] + si*B[2]);
+      vx.push(cx+ox);
+      vy.push(cy+oy);
+      vz.push(cz+oz);
+    }
+  }
+
+  const ti = [];
+  const tj = [];
+  const tk = [];
+  for (let idx=0; idx<n-1; idx++){
+    const a0 = ringIndex[idx];
+    const b0 = ringIndex[idx+1];
+    for (let s=0; s<sides; s++){
+      const s1 = (s+1)%sides;
+      const a = a0 + s;
+      const a1= a0 + s1;
+      const b = b0 + s;
+      const b1= b0 + s1;
+      ti.push(a);  tj.push(b);  tk.push(a1);
+      ti.push(a1); tj.push(b);  tk.push(b1);
+    }
+  }
+  return {x:vx, y:vy, z:vz, i:ti, j:tj, k:tk};
+}
+
+/** =============== 方向箭头：分箱着色（线段） =============== */
+function buildColoredArrowBins(fieldDirs, arrowLenMm, withHead, valueArr, cmin, cmax, nBins){
+  // fieldDirs: positions + B vector
+  // valueArr: color scalar at each dir point (in display units, e.g. G or T)
+  // returns array of {x,y,z, color} traces-ready
+  const bins = [];
+  for (let b=0; b<nBins; b++){
+    const tMid = (nBins===1) ? 0.5 : (b/(nBins-1));
+    bins.push({x:[],y:[],z:[], color: viridisRgba(tMid, 0.95)});
+  }
+  const headLen = arrowLenMm * 0.35;
+  const headWid = arrowLenMm * 0.18;
+
+  function norm3(ax,ay,az){
+    const s = Math.sqrt(ax*ax+ay*ay+az*az);
+    if (s===0) return [0,0,0];
+    return [ax/s, ay/s, az/s];
+  }
+  function cross(ax,ay,az, bx,by,bz){
+    return [ay*bz-az*by, az*bx-ax*bz, ax*by-ay*bx];
+  }
+  const denom = (cmax - cmin) + 1e-12;
+
+  const n = fieldDirs.xmm.length;
+  for (let i=0; i<n; i++){
+    const bm = fieldDirs.bmag_T[i];
+    if (!isFinite(bm) || bm <= 0) continue;
+
+    const bx = fieldDirs.bx[i], by = fieldDirs.by[i], bz = fieldDirs.bz[i];
+    const d = norm3(bx,by,bz);
+
+    // choose bin by normalized color value
+    const v = valueArr[i];
+    let t = (v - cmin) / denom;
+    t = Math.max(0, Math.min(1, t));
+    let bi = Math.floor(t * (nBins-1) + 1e-9);
+    bi = Math.max(0, Math.min(nBins-1, bi));
+
+    const sx = fieldDirs.xmm[i], sy = fieldDirs.ymm[i], sz = fieldDirs.zmm[i];
+    const ex = sx + d[0]*arrowLenMm;
+    const ey = sy + d[1]*arrowLenMm;
+    const ez = sz + d[2]*arrowLenMm;
+
+    // shaft
+    bins[bi].x.push(sx, ex, null);
+    bins[bi].y.push(sy, ey, null);
+    bins[bi].z.push(sz, ez, null);
+
+    if (withHead){
+      let rx=0, ry=0, rz=1;
+      if (Math.abs(d[2]) > 0.9){ rx=1; ry=0; rz=0; }
+      let p = cross(d[0],d[1],d[2], rx,ry,rz);
+      p = norm3(p[0],p[1],p[2]);
+
+      const hx1 = ex - d[0]*headLen + p[0]*headWid;
+      const hy1 = ey - d[1]*headLen + p[1]*headWid;
+      const hz1 = ez - d[2]*headLen + p[2]*headWid;
+
+      const hx2 = ex - d[0]*headLen - p[0]*headWid;
+      const hy2 = ey - d[1]*headLen - p[1]*headWid;
+      const hz2 = ez - d[2]*headLen - p[2]*headWid;
+
+      bins[bi].x.push(ex, hx1, null, ex, hx2, null);
+      bins[bi].y.push(ey, hy1, null, ey, hy2, null);
+      bins[bi].z.push(ez, hz1, null, ez, hz2, null);
+    }
+  }
+  return bins;
+}
+
+/** =============== Plotly 绘制 =============== */
+let state = {
+  showDirs: true,
+  lastData: null,
+};
+
+function makeTraces(p, coil, fieldPts, fieldDirs){
+  const traces = [];
+
+  // Coil visualization
+  if (p.show_tube){
+    for (let k=0; k<coil.layers.length; k++){
+      const L = coil.layers[k];
+      const outer = tubeMeshFromCenterline(L.xmm, L.ymm, L.zmm, p.wire_od_mm/2, p.tube_sides);
+      if (outer){
+        traces.push({
+          type:"mesh3d",
+          name:`导体外表面 L${k+1}`,
+          x: outer.x, y: outer.y, z: outer.z,
+          i: outer.i, j: outer.j, k: outer.k,
+          opacity: p.show_hollow ? 0.55 : 0.95,
+          showscale:false,
+          hoverinfo:"skip",
+        });
+      }
+      if (p.show_hollow && p.wire_id_mm > 0){
+        const inner = tubeMeshFromCenterline(L.xmm, L.ymm, L.zmm, p.wire_id_mm/2, p.tube_sides);
+        if (inner){
+          traces.push({
+            type:"mesh3d",
+            name:`水道内孔 L${k+1}`,
+            x: inner.x, y: inner.y, z: inner.z,
+            i: inner.i, j: inner.j, k: inner.k,
+            opacity: 0.20,
+            showscale:false,
+            hoverinfo:"skip",
+          });
+        }
+      }
+    }
+  } else {
+    for (let k=0; k<coil.layers.length; k++){
+      const L = coil.layers[k];
+      traces.push({
+        type:"scatter3d",
+        mode:"lines",
+        name:`线圈层 ${k+1}`,
+        x:L.xmm, y:L.ymm, z:L.zmm,
+        line:{width:6},
+        hovertemplate:`层 ${k+1}<extra></extra>`,
+      });
+    }
+  }
+
+  // Compute color scalars
+  const unit = p.field_unit;
+  const pointVals = fieldPts.bmag_T.map(b => (unit==="G" ? b*1e4 : b));
+  const dirVals   = fieldDirs.bmag_T.map(b => (unit==="G" ? b*1e4 : b));
+
+  // Determine cmin/cmax based on displayed (filtered) points
+  let cmin = Infinity, cmax = -Infinity;
+  for (const v of pointVals){ cmin = Math.min(cmin, v); cmax = Math.max(cmax, v); }
+  if (!isFinite(cmin) || !isFinite(cmax) || cmax<=cmin){ cmin = 0; cmax = 1; }
+
+  const cTitle = unit==="G" ? "|B| (G)" : "|B| (T)";
+
+  // Field points (colored by |B|)
+  traces.push({
+    type:"scatter3d",
+    mode:"markers",
+    name:"磁场点云 |B|",
+    x: fieldPts.xmm, y: fieldPts.ymm, z: fieldPts.zmm,
+    marker:{
+      size: p.marker_size,
+      color: pointVals,
+      colorscale:"Viridis",
+      opacity: 0.92,
+      cmin: cmin,
+      cmax: cmax,
+      colorbar:{title:cTitle},
+    },
+    hovertemplate: `x=%{x:.1f}mm<br>y=%{y:.1f}mm<br>z=%{z:.1f}mm<br>|B|=%{marker.color:.3g} ${unit}<extra></extra>`
+  });
+
+  // Direction arrows colored with same scale (bin traces)
+  const nBins = 18; // keep traces reasonable
+  const bins = buildColoredArrowBins(fieldDirs, p.dir_len_mm, p.dir_head, dirVals, cmin, cmax, nBins);
+  for (let b=0; b<bins.length; b++){
+    const bin = bins[b];
+    if (bin.x.length === 0) continue;
+    traces.push({
+      type:"scatter3d",
+      mode:"lines",
+      name:"方向箭头",
+      x: bin.x, y: bin.y, z: bin.z,
+      line:{width:4, color:bin.color},
+      hoverinfo:"skip",
+      visible: state.showDirs,
+    });
+  }
+
+  return traces;
+}
+
+function makeLayout(){
+  return {
+    margin:{l:0,r:0,t:0,b:0},
+    scene:{
+      xaxis:{title:"x (mm)", gridcolor:"rgba(255,255,255,.10)", zerolinecolor:"rgba(255,255,255,.15)"},
+      yaxis:{title:"y (mm)", gridcolor:"rgba(255,255,255,.10)", zerolinecolor:"rgba(255,255,255,.15)"},
+      zaxis:{title:"z (mm)", gridcolor:"rgba(255,255,255,.10)", zerolinecolor:"rgba(255,255,255,.15)"},
+      aspectmode:"data",
+      bgcolor:"rgba(0,0,0,0)",
+      camera:{ eye:{x:1.6,y:1.4,z:0.9} }
+    },
+    showlegend:false,
+    paper_bgcolor:"rgba(0,0,0,0)",
+    plot_bgcolor:"rgba(0,0,0,0)",
+  };
+}
+
+function setStatus(msg, kind){
+  const el = document.getElementById("status");
+  if (kind === "ok"){
+    el.innerHTML = `状态：<span class="ok">${msg}</span>`;
+  }else if (kind === "bad"){
+    el.innerHTML = `状态：<span class="bad">${msg}</span>`;
+  }else{
+    el.textContent = "状态：" + msg;
+  }
+}
+
+/** =============== 轴上最大值检查 =============== */
+function axisMaxCheck(segMid_m, segDl_m, I, eps, z0_m, z1_m, nSamples){
+  let zBest = 0, bBest = -1;
+  for (let i=0; i<nSamples; i++){
+    const z = z0_m + (z1_m - z0_m) * (i/(nSamples-1));
+    const B = B_at_point_m([0,0,z], segMid_m, segDl_m, I, eps);
+    const bm = Math.sqrt(B[0]*B[0]+B[1]*B[1]+B[2]*B[2]);
+    if (bm > bBest){
+      bBest = bm;
+      zBest = z;
+    }
+  }
+  return {z_m:zBest, b_T:bBest};
+}
+
+/** =============== 主流程：更新计算并绘图 =============== */
+async function updateAll(){
+  const btn = document.getElementById("btn_update");
+  btn.disabled = true;
+  try{
+    updateDerivedUI();
+    const p = readParams();
+    const errs = validateParams(p);
+    if (errs.length){
+      setStatus("参数错误： " + errs.join("； "), "bad");
+      btn.disabled = false;
+      return;
+    }
+
+    setStatus("正在生成线圈并计算磁场（请稍等）…");
+    await new Promise(r => setTimeout(r, 20));
+
+    const t0 = nowMs();
+    const coil = buildCoilCenterlines(p);
+
+    // Field sample domain
+    const radius_m = p.field_radius_mm * 1e-3;
+    const length_m = p.field_length_mm * 1e-3;
+
+    const samplesPts  = buildCylindricalSamples(radius_m, length_m, p.pts_nz, p.pts_nr, p.pts_nt);
+    const samplesDirs = buildCylindricalSamples(radius_m, length_m, p.dir_nz, p.dir_nr, p.dir_nt);
+
+    const fieldPtsRaw  = computeFieldOnSamples(samplesPts,  coil.segMid_m, coil.segDl_m, p.current_A, p.epsilon_m);
+    const fieldDirsRaw = computeFieldOnSamples(samplesDirs, coil.segMid_m, coil.segDl_m, p.current_A, p.epsilon_m);
+
+    // Apply display threshold filter
+    let BmaxPts = 0;
+    for (const b of fieldPtsRaw.bmag_T) BmaxPts = Math.max(BmaxPts, b);
+    const minB = p.display_min_frac * BmaxPts;
+
+    const fieldPts  = (minB>0) ? filterField(fieldPtsRaw,  minB) : fieldPtsRaw;
+    const fieldDirs = (minB>0) ? filterField(fieldDirsRaw, minB) : fieldDirsRaw;
+
+    // Center field
+    const B0 = B_at_point_m([0,0,0], coil.segMid_m, coil.segDl_m, p.current_A, p.epsilon_m);
+    const B0mag = Math.sqrt(B0[0]*B0[0]+B0[1]*B0[1]+B0[2]*B0[2]);
+
+    setText("bx0", fmtB(B0[0], p.field_unit));
+    setText("by0", fmtB(B0[1], p.field_unit));
+    setText("bz0", fmtB(B0[2], p.field_unit));
+    setText("b0",  fmtB(B0mag, p.field_unit));
+
+    // Axis max check on the coil length span (not full domain)
+    const axis = axisMaxCheck(coil.segMid_m, coil.segDl_m, p.current_A, p.epsilon_m, coil.meta.z0_m, coil.meta.z1_m, 121);
+    setText("axis_zmax", (axis.z_m*1e3).toFixed(2) + " mm");
+    setText("axis_bmax", fmtB(axis.b_T, p.field_unit));
+
+    // Sanity checks
+    const mu0 = 4*Math.PI*1e-7;
+    const L = coil.meta.coil_length_m;
+    const N = coil.meta.turns_total;
+    const n = N / Math.max(L, 1e-12);
+    const B_long = mu0 * n * p.current_A;
+
+    const d = derivedGeometry(p);
+    const Rin = p.inner_radius_mm*1e-3;
+    const Rout = d.Routmm*1e-3;
+    const Rmean = 0.5*(Rin+Rout);
+    const B_sheet = (mu0 * N * p.current_A) / (2 * Math.sqrt(Rmean*Rmean + (L/2)*(L/2)));
+
+    setText("b_long", fmtB(B_long, p.field_unit));
+    setText("b_sheet", fmtB(B_sheet, p.field_unit));
+
+    // Plot
+    const traces = makeTraces(p, coil, fieldPts, fieldDirs);
+    Plotly.react("plot", traces, makeLayout(), {responsive:true, displaylogo:false});
+
+    const t1 = nowMs();
+    const segCount = coil.segMid_m.length/3;
+    setStatus(`完成。线段数 ${segCount}；点云显示 ${fieldPts.bmag_T.length}/${fieldPtsRaw.bmag_T.length}；箭头显示 ${fieldDirs.bmag_T.length}/${fieldDirsRaw.bmag_T.length}；耗时 ${(t1-t0).toFixed(0)} ms`, "ok");
+    state.lastData = {p, coil, fieldPts, fieldDirs};
+  }catch(err){
+    console.error(err);
+    setStatus("发生错误：" + (err?.message || String(err)), "bad");
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+function toggleDirs(){
+  state.showDirs = !state.showDirs;
+  if (!state.lastData) return;
+  const {p, coil, fieldPts, fieldDirs} = state.lastData;
+  const traces = makeTraces(p, coil, fieldPts, fieldDirs);
+  Plotly.react("plot", traces, makeLayout(), {responsive:true, displaylogo:false});
+  setStatus(state.showDirs ? "已显示方向箭头（颜色=|B|，方向=磁场方向）" : "已隐藏方向箭头（仅点云颜色=|B|）", "ok");
+}
+
+function resetDefaults(){
+  const defaults = {
+    inner_radius_mm:15, n_layers:4, turns_per_layer:50, pitch_mm:6,
+    wire_od_mm:6, wire_id_mm:4, gap_radial_mm:0.2, layer_phase_deg:0,
+    current_A:64,
+    auto_domain:true, domain_margin_mm:30,
+    field_radius_mm:60, field_length_mm:300,
+    marker_size:3, display_min_frac:0,
+    pts_nz:15, pts_nr:6, pts_nt:12,
+    dir_nz:10, dir_nr:4, dir_nt:8,
+    dir_len_mm:8, dir_head:true,
+    pts_per_turn_vis:18, seg_per_turn_field:40, tube_sides:12,
+    epsilon_m:"1e-6",
+    show_tube:true, show_hollow:true,
+  };
+  for (const [k,v] of Object.entries(defaults)){
+    const el = document.getElementById(k);
+    if (!el) continue;
+    if (el.type === "checkbox") el.checked = !!v;
+    else el.value = v;
+  }
+  document.getElementById("field_unit").value = "G";
+  state.showDirs = true;
+  updateDerivedUI();
+  updateAll();
+}
+
+/** =============== 事件绑定 =============== */
+document.getElementById("btn_update").addEventListener("click", updateAll);
+document.getElementById("btn_toggle_dir").addEventListener("click", toggleDirs);
+document.getElementById("btn_reset").addEventListener("click", resetDefaults);
+
+for (const id of [
+  "inner_radius_mm","n_layers","turns_per_layer","pitch_mm",
+  "wire_od_mm","wire_id_mm","gap_radial_mm","current_A",
+  "auto_domain","domain_margin_mm","field_radius_mm","field_length_mm"
+]){
+  const el = document.getElementById(id);
+  if (el){
+    el.addEventListener("input", updateDerivedUI);
+    el.addEventListener("change", updateDerivedUI);
+  }
+}
+
+updateDerivedUI();
+updateAll();
+</script>
+</body>
+</html>
