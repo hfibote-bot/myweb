@@ -1,0 +1,2131 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>电子结构可视化（电子云 / 单轨道 / MO）</title>
+
+  <!-- three.js importmap：用 http server 打开（不要直接 file://） -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <style>
+    :root{
+      --bg1:#070a14;
+      --bg2:#0b1020;
+      --panel: rgba(17,26,51,.92);
+      --panel2: rgba(11,19,48,.70);
+      --line: rgba(38,51,86,.95);
+      --text:#eaf0ff;
+      --muted:#93a4c7;
+      --accent:#7aa2ff;
+      --good:#66f0c7;
+      --warn:#ffd27a;
+      --danger:#ff6b6b;
+
+      /* 控件默认长度：原来的一半；不够就自动放大（JS 里做） */
+      --ctlBase:110px;
+      --ctlMax:280px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      height:100vh;
+      overflow:hidden;
+      background:linear-gradient(180deg,var(--bg1), var(--bg2));
+      color:var(--text);
+      font:15px/1.55 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"PingFang SC","Microsoft YaHei";
+    }
+
+    /* Layout */
+    #app{
+      height:100vh;
+      display:grid;
+      grid-template-columns: 520px 1fr; /* 放大版：左侧更宽 */
+      gap:12px;
+      padding:12px;
+    }
+    @media(max-width: 980px){
+      #app{ grid-template-columns: 1fr; grid-template-rows: 520px 1fr; }
+    }
+
+    /* Left */
+    #left{
+      min-width: 320px;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      overflow:hidden;
+    }
+
+    .card{
+      background:var(--panel);
+      border:1px solid var(--line);
+      border-radius:16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.25);
+      overflow:hidden;
+    }
+    .cardHeader{
+      padding:12px 14px 10px;
+      border-bottom:1px solid rgba(38,51,86,.55);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:10px;
+    }
+    .cardHeader h2{
+      margin:0;
+      font-size:15px;
+      color:var(--muted);
+      letter-spacing:.2px;
+      font-weight:800;
+    }
+    .cardBody{ padding:14px; }
+
+    /* Tabs */
+    .tabs{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+    .tab{
+      padding:9px 12px;
+      border-radius:999px;
+      border:1px solid rgba(38,51,86,.95);
+      background:rgba(11,19,48,.65);
+      color:var(--muted);
+      cursor:pointer;
+      user-select:none;
+      font-size:13px;
+    }
+    .tab.active{
+      color:var(--text);
+      border-color:rgba(122,162,255,.75);
+      box-shadow: 0 0 0 3px rgba(122,162,255,.12) inset;
+    }
+
+    /* Form */
+    .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+    label{color:var(--muted); font-size:13px}
+    input,select,button{
+      background:#0b1330;
+      color:var(--text);
+      border:1px solid rgba(38,51,86,.95);
+      border-radius:12px;
+      padding:10px 12px;
+      outline:none;
+      font-size:14px;
+    }
+    input,select{width:var(--ctlBase); max-width:100%; flex:0 1 auto;}
+    input{min-width:var(--ctlBase)}
+    select{min-width:var(--ctlBase)}
+    button{
+      cursor:pointer;
+      border:1px solid rgba(122,162,255,.45);
+      background:linear-gradient(180deg, rgba(122,162,255,.22), rgba(122,162,255,.06));
+    }
+    button:hover{border-color:rgba(122,162,255,.85)}
+    button.active{
+      border-color:rgba(122,162,255,.85);
+      box-shadow: 0 0 0 3px rgba(122,162,255,.12) inset;
+    }
+
+    .small{font-size:13px; color:var(--muted)}
+    .tiny{font-size:12px; color:var(--muted)}
+    .mono{font-family: ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+    .divider{height:1px; background:rgba(38,51,86,.55); margin:10px 0}
+    .hint{
+      border-left:3px solid rgba(122,162,255,.6);
+      padding:10px 12px;
+      background:rgba(11,19,48,.35);
+      border-radius:12px;
+      color:var(--muted);
+      margin-top:10px;
+      font-size:13px;
+    }
+    .error{
+      color: var(--danger);
+      background: rgba(255,107,107,.08);
+      border: 1px solid rgba(255,107,107,.25);
+      padding:10px 12px;
+      border-radius:12px;
+      display:none;
+    }
+
+    /* Output area: scroll */
+    #outputCard{flex:1; display:flex; flex-direction:column; min-height:0}
+    #outputScroll{
+      padding:12px;
+      overflow:auto;
+      min-height:0;
+    }
+    .confLine{
+      padding:10px 12px;
+      border-radius:12px;
+      border:1px dashed rgba(38,51,86,.9);
+      background:rgba(11,19,48,.55);
+      margin-bottom:10px;
+    }
+
+    /* Orbital occupancy diagram */
+    .shellBlock{border:1px solid rgba(38,51,86,.9); border-radius:14px; padding:12px; margin:12px 0; background:rgba(11,19,48,.35);}
+    .shellHeader{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px}
+    .shellHeader b{font-size:14px}
+    .subshellRow{
+      display:flex;
+      gap:12px;
+      flex-wrap:wrap;
+      align-items:flex-start;
+      padding:10px 8px;
+      border-top:1px solid rgba(38,51,86,.55);
+      border-radius:12px;
+      cursor:pointer;
+    }
+    .subshellRow:hover{ background: rgba(122,162,255,.06); }
+    .subshellRow.active{
+      background: rgba(122,162,255,.12);
+      box-shadow: 0 0 0 2px rgba(122,162,255,.12) inset;
+    }
+    .subshellRow.off{opacity:.35}
+    .subshellRow:first-of-type{border-top:none}
+    .subshellLabel{width:90px; color:var(--muted); font-weight:800;}
+
+    .boxes{display:flex; gap:7px; flex-wrap:wrap}
+    .box{
+      width:46px;
+      height:36px;
+      border:1px solid rgba(38,51,86,.95);
+      border-radius:10px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      background:rgba(7,10,20,.55);
+      cursor:pointer;
+      user-select:none;
+      position:relative;
+      overflow:hidden;
+    }
+    .box:hover{ border-color: rgba(122,162,255,.65); }
+    .box.active{
+      background: rgba(122,162,255,.14);
+      box-shadow: 0 0 0 2px rgba(122,162,255,.14) inset;
+      border-color: rgba(122,162,255,.85);
+    }
+    .boxInner{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      line-height:1;
+      gap:2px;
+    }
+    .arrowRow{
+      height:18px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:2px;
+      letter-spacing:-1px;
+      font-size:17px;
+    }
+    .arrow{font-size:17px; line-height:1; letter-spacing:-2px}
+    .arrowBtn{
+      padding:0 1px;
+      border-radius:6px;
+      cursor:pointer;
+    }
+    .arrowBtn:hover{ background: rgba(122,162,255,.10); }
+    .spinUp{ color:#00ffff; }
+    .spinDown{ color:#ff66ff; }
+    .orbTag{
+      font-size:10px;
+      color:rgba(147,164,199,.85);
+      letter-spacing:0;
+    }
+
+    /* MO diagram */
+    .moWrap{display:grid; grid-template-columns: 1fr; gap:12px;}
+    .moCanvas{border:1px solid rgba(38,51,86,.9); border-radius:14px; background:rgba(11,19,48,.35); padding:12px; overflow:auto; min-height:420px;}
+    .level{display:flex; align-items:center; gap:10px; padding:10px 0; border-top:1px solid rgba(38,51,86,.55);}
+    .level:first-child{border-top:none}
+    .lvlName{width:170px; color:var(--muted); font-weight:800}
+    .lvlLine{flex:1; height:2px; background:rgba(147,164,199,.25); border-radius:999px;}
+    .lvlBoxes{display:flex; gap:8px; align-items:center; flex-wrap:wrap; min-width:240px; justify-content:flex-end;}
+    .moBox{width:44px; height:28px; border:1px solid rgba(38,51,86,.95); border-radius:10px; display:flex; align-items:center; justify-content:center; background:rgba(7,10,20,.55);}
+
+    .badge{display:inline-flex; align-items:center; gap:8px; padding:7px 12px; border-radius:999px; border:1px solid rgba(38,51,86,.95); background:rgba(11,19,48,.45); color:var(--muted); margin-right:8px; font-size:13px;}
+    .badge b{color:var(--text)}
+    .ok{color:var(--good)}
+    .warn{color:var(--warn)}
+
+    /* Right: 3D */
+    #right{
+      position:relative;
+      border-radius:16px;
+      overflow:hidden;
+      border:1px solid var(--line);
+      background:radial-gradient(circle at 35% 30%, rgba(40,55,90,.55) 0%, rgba(5,5,5,1) 65%);
+      min-height: 520px;
+    }
+    #view3d{ position:absolute; inset:0; }
+    #overlay{
+      position:absolute;
+      left:14px;
+      top:14px;
+      padding:12px 14px;
+      border-radius:14px;
+      border:1px solid rgba(38,51,86,.9);
+      background:rgba(0,0,0,.35);
+      backdrop-filter: blur(6px);
+      max-width: 680px;
+      pointer-events:none;
+    }
+    #ovTitle{font-weight:900; margin-bottom:6px; font-size:15px}
+    #ovSub{color:var(--muted); font-size:13px}
+
+    #legend{
+      position:absolute;
+      left:14px;
+      bottom:14px;
+      padding:12px 14px;
+      border-radius:14px;
+      border:1px solid rgba(38,51,86,.9);
+      background:rgba(0,0,0,.38);
+      max-width: 680px;
+      color: var(--muted);
+      pointer-events:none;
+      font-size:13px;
+    }
+    .key{display:inline-block; width:11px; height:11px; margin-right:7px; border-radius:3px; vertical-align:middle;}
+    #legendLine2{margin-top:6px}
+
+    /* Compact mode: hide explanations by default */
+    body.compact .hint,
+    body.compact .explain,
+    body.compact #ovSub,
+    body.compact #legendLine2,
+    body.compact #spdfDescText,
+    body.compact #moNotes{
+      display:none !important;
+    }
+    body.compact #btnSavePNG1,
+    body.compact #btnSavePNG3,
+    body.compact #btnSavePNG4{
+      display:none !important;
+    }
+
+    /* lightweight toggle */
+    .btnGhost{
+      background: rgba(11,19,48,.18);
+      border:1px solid rgba(38,51,86,.90);
+      color:var(--muted);
+      border-radius:999px;
+      padding:8px 10px;
+      font-size:13px;
+      line-height:1;
+    }
+    .btnGhost:hover{
+      border-color: rgba(122,162,255,.65);
+      color: var(--text);
+    }
+    .btnGhost.active{
+      border-color: rgba(122,162,255,.85);
+      color: var(--text);
+      box-shadow: 0 0 0 3px rgba(122,162,255,.12) inset;
+    }
+  </style>
+</head>
+
+<body class="compact">
+  <div id="app">
+
+    <aside id="left">
+
+      <section class="card">
+        <div class="cardHeader">
+          <h2>模式与控制</h2>
+          <div class="tabs" id="modeTabs">
+            <div class="tab active" data-mode="atom">电子云</div>
+            <div class="tab" data-mode="spdf">单轨道</div>
+            <div class="tab" data-mode="mo">MO</div>
+          </div>
+        </div>
+
+        <div class="cardBody" id="controls">
+          <div id="errBox" class="error"></div>
+
+          <!-- 电子云（原子） -->
+          <div id="panelAtom">
+            <div class="row">
+              <label>元素</label>
+              <input id="atomInput" placeholder="例如：8 / O / Fe" />
+              <button id="btnAtom">生成</button>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="row">
+              <label>质量</label>
+              <select id="cloudQualityAtom">
+                <option value="0.75">0.75（更流畅）</option>
+                <option value="1" selected>1.00（默认）</option>
+                <option value="1.35">1.35（更细/更卡）</option>
+              </select>
+
+              <label>显示</label>
+              <button id="btnValenceAtom" class="active">价层</button>
+              <button id="btnAllAtom">全部</button>
+            </div>
+
+            <div class="row" style="margin-top:10px">
+              <label>旋转</label>
+              <select id="autoRotateAtom">
+                <option value="on" selected>开</option>
+                <option value="off">关</option>
+              </select>
+
+              <button id="btnSavePNG1">导出 PNG</button>
+            </div>
+
+            <div class="hint">
+              行=子层；格=单轨道（p: px/py/pz；d: d1–d5；f: f1–f7）。点格子可画该轨道；点 ↑/↓ 可区分自旋。
+            </div>
+          </div>
+
+          <!-- 单轨道（s/p/d/f） -->
+          <div id="panelSPDF" style="display:none">
+            <div class="row">
+              <label>轨道</label>
+              <select id="spdfFamily">
+                <option value="1s">1s</option>
+                <option value="2s">2s</option>
+                <option value="2p" selected>2p</option>
+                <option value="3d">3d</option>
+                <option value="4f">4f</option>
+              </select>
+              <select id="spdfVariant"></select>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="row">
+              <label>点数</label>
+              <select id="spdfQuality">
+                <option value="16000">16000（流畅）</option>
+                <option value="25000" selected>25000（默认）</option>
+                <option value="36000">36000（更细/更卡）</option>
+              </select>
+
+              <label>旋转</label>
+              <select id="autoRotateSPDF">
+                <option value="on" selected>开</option>
+                <option value="off">关</option>
+              </select>
+
+              <button id="btnSavePNG3">导出 PNG</button>
+            </div>
+
+            <div class="hint">
+              颜色=相位正负（波函数 ψ 的符号）；概率密度是 |ψ|²。相位在“叠加/成键/反键”里决定干涉。
+            </div>
+          </div>
+
+          <!-- MO -->
+          <div id="panelMO" style="display:none">
+            <div class="row">
+              <label>分子</label>
+              <select id="molSelect"></select>
+              <button id="btnMO">生成（左下）</button>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="row">
+              <label>右侧 3D</label>
+              <select id="mo3dSelect"></select>
+              <button id="btnMORender">渲染</button>
+            </div>
+
+            <div class="row" style="margin-top:10px">
+              <label>点数</label>
+              <select id="moQuality">
+                <option value="14000">14000（流畅）</option>
+                <option value="24000" selected>24000（默认）</option>
+                <option value="36000">36000（更细/更卡）</option>
+              </select>
+
+              <label>旋转</label>
+              <select id="autoRotateMO">
+                <option value="on">开</option>
+                <option value="off" selected>关</option>
+              </select>
+
+              <button id="btnSavePNG4">导出 PNG</button>
+            </div>
+
+            <div class="hint">
+              左下：MO 能级与填充；右侧：选某个 MO 画 3D 相位云。
+            </div>
+          </div>
+
+          <div class="hint">
+            若 3D 不显示：请用本目录启动 <span class="mono">python -m http.server 8000</span>，再打开 <span class="mono">http://localhost:8000/</span>。
+          </div>
+        </div>
+      </section>
+
+      <section class="card" id="outputCard">
+        <div class="cardHeader">
+          <h2 id="outTitle">电子云</h2>
+          <div class="row" style="gap:8px">
+            <button id="btnToggleHelp" class="btnGhost" title="切换：隐藏/显示说明">显示说明</button>
+            <button id="btnRegen" title="重新随机采样">重新采样</button>
+            <button id="btnSavePNGTop">导出 PNG</button>
+          </div>
+        </div>
+
+        <div id="outputScroll">
+
+          <!-- Atom output -->
+          <div id="outAtom">
+            <div id="atomSummary" class="small"></div>
+            <div id="atomConf" class="confLine mono">—</div>
+            <div id="cloudViewStatus" class="small" style="margin:-2px 0 10px; color:var(--muted)"></div>
+            <div id="atomDiagram"></div>
+          </div>
+
+          <!-- SPDF output -->
+          <div id="outSPDF" style="display:none">
+            <div class="confLine">
+              <div style="font-weight:900" id="spdfDescTitle">—</div>
+              <div class="small" id="spdfDescText" style="margin-top:6px"></div>
+              <div class="divider"></div>
+              <div class="small">
+                <span class="key" style="background:#00ffff;"></span>正相位（+）&nbsp;&nbsp;
+                <span class="key" style="background:#ff0055;"></span>负相位（−）
+              </div>
+            </div>
+          </div>
+
+          <!-- MO output -->
+          <div id="outMO" style="display:none">
+            <div id="moSummary" class="small"></div>
+
+            <div class="confLine">
+              <div class="row" style="gap:8px; align-items:flex-start">
+                <span class="badge"><b>键级</b>：<span id="bondOrder">-</span></span>
+                <span class="badge"><b>磁性</b>：<span id="magnet">-</span></span>
+              </div>
+              <div style="margin-top:8px" class="small" id="moNotes"></div>
+            </div>
+
+            <div class="confLine mono" id="moFillText">—</div>
+
+            <div class="moWrap">
+              <div class="moCanvas" id="moDiagram"></div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+    </aside>
+
+    <main id="right">
+      <div id="view3d"></div>
+
+      <div id="overlay">
+        <div id="ovTitle">电子云</div>
+        <div id="ovSub">右侧是 3D；左侧切换模式。</div>
+      </div>
+
+      <div id="legend">
+        <div id="legendLine1"></div>
+        <div id="legendLine2" class="small"></div>
+      </div>
+    </main>
+
+  </div>
+
+<script type="module">
+  import * as THREE from "three";
+  import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+  /* =========================
+   * 元素与组态
+   * ========================= */
+  const elementSymbols = [
+    "", "H","He","Li","Be","B","C","N","O","F","Ne",
+    "Na","Mg","Al","Si","P","S","Cl","Ar",
+    "K","Ca","Sc","Ti","V","Cr","Mn","Fe","Co","Ni","Cu","Zn",
+    "Ga","Ge","As","Se","Br","Kr",
+    "Rb","Sr","Y","Zr","Nb","Mo","Tc","Ru","Rh","Pd","Ag","Cd",
+    "In","Sn","Sb","Te","I","Xe",
+    "Cs","Ba","La","Ce","Pr","Nd","Pm","Sm","Eu","Gd","Tb","Dy","Ho","Er","Tm","Yb","Lu",
+    "Hf","Ta","W","Re","Os","Ir","Pt","Au","Hg",
+    "Tl","Pb","Bi","Po","At","Rn",
+    "Fr","Ra","Ac","Th","Pa","U","Np","Pu","Am","Cm","Bk","Cf","Es","Fm","Md","No","Lr",
+    "Rf","Db","Sg","Bh","Hs","Mt","Ds","Rg","Cn","Nh","Fl","Mc","Lv","Ts","Og"
+  ];
+
+  const nameCN = {
+    H:"氢",He:"氦",Li:"锂",Be:"铍",B:"硼",C:"碳",N:"氮",O:"氧",F:"氟",Ne:"氖",
+    Na:"钠",Mg:"镁",Al:"铝",Si:"硅",P:"磷",S:"硫",Cl:"氯",Ar:"氩",
+    K:"钾",Ca:"钙",Sc:"钪",Ti:"钛",V:"钒",Cr:"铬",Mn:"锰",Fe:"铁",Co:"钴",Ni:"镍",Cu:"铜",Zn:"锌",
+    Br:"溴",Kr:"氪",Ag:"银",Xe:"氙",Au:"金",Pt:"铂",Pd:"钯"
+  };
+
+  const aufbau = [
+    ["1s",2], ["2s",2], ["2p",6], ["3s",2], ["3p",6],
+    ["4s",2], ["3d",10], ["4p",6],
+    ["5s",2], ["4d",10], ["5p",6],
+    ["6s",2], ["4f",14], ["5d",10], ["6p",6],
+    ["7s",2], ["5f",14], ["6d",10], ["7p",6],
+  ];
+
+  const exceptions = {
+    24: {"3d":5,"4s":1}, 29: {"3d":10,"4s":1},
+    41: {"4d":4,"5s":1}, 42: {"4d":5,"5s":1},
+    44: {"4d":7,"5s":1}, 45: {"4d":8,"5s":1},
+    46: {"4d":10,"5s":0},47: {"4d":10,"5s":1},
+    78: {"5d":9,"6s":1}, 79: {"5d":10,"6s":1}
+  };
+
+  function parseAtomInput(raw){
+    const s = (raw||"").trim();
+    if(!s) return null;
+    if(/^[0-9]+$/.test(s)){
+      const Z = Number(s);
+      if(Z>=1 && Z<elementSymbols.length) return {Z, sym: elementSymbols[Z]};
+      return null;
+    }
+    const sym = s[0].toUpperCase() + (s.slice(1).toLowerCase());
+    const Z = elementSymbols.indexOf(sym);
+    if(Z>0) return {Z, sym};
+    return null;
+  }
+
+  function splitOrbitalTag(tag){
+    const n = Number(tag[0]);
+    const l = tag.slice(1);
+    return {n,l};
+  }
+  function lToNum(l){ return ({s:0,p:1,d:2,f:3,g:4})[l] ?? 0; }
+  function orbitalBoxes(l){
+    const L = lToNum(l);
+    return 2*L+1;
+  }
+
+  function buildElectronConfig(Z){
+    let remaining = Z;
+    const occ = {};
+    for(const [tag,cap] of aufbau){
+      if(remaining<=0) break;
+      const put = Math.min(cap, remaining);
+      occ[tag] = put;
+      remaining -= put;
+    }
+    if(exceptions[Z]){
+      const ex = exceptions[Z];
+      for(const key in ex) occ[key] = ex[key];
+    }
+    const parts = [];
+    for(const [tag] of aufbau){
+      const val = occ[tag] ?? 0;
+      if(val>0) parts.push(`${tag}${val}`);
+    }
+    const byN = new Map();
+    for(const [tag] of aufbau){
+      const val = occ[tag] ?? 0;
+      if(val<=0) continue;
+      const {n,l} = splitOrbitalTag(tag);
+      if(!byN.has(n)) byN.set(n, []);
+      byN.get(n).push({tag, n, l, e: val});
+    }
+    const list = [];
+    for(const [tag] of aufbau){
+      const val = occ[tag] ?? 0;
+      if(val>0){
+        const {n,l} = splitOrbitalTag(tag);
+        list.push({name: tag, n, l, count: val});
+      }
+    }
+    return {occ, parts, byN, list};
+  }
+
+  function fillBoxArrows(l, e){
+    const k = orbitalBoxes(l);
+    const boxes = Array.from({length:k}, ()=>({up:false, down:false}));
+    for(let i=0;i<k && e>0;i++){ boxes[i].up = true; e--; }
+    for(let i=0;i<k && e>0;i++){ boxes[i].down = true; e--; }
+    return boxes;
+  }
+
+  function variantShort(l, idx){
+    if(l === "s") return "s";
+    if(l === "p") return (["px","py","pz"][idx] ?? `p${idx+1}`);
+    if(l === "d") return `d${idx+1}`;
+    if(l === "f") return `f${idx+1}`;
+    return `${l}${idx+1}`;
+  }
+  function variantFull(l, idx){
+    if(l === "p"){
+      return (["px","py","pz"][idx] ?? `p${idx+1}`);
+    }
+    if(l === "d"){
+      const names = ["dxy","dyz","dz²","dxz","dx²−y²"];
+      return `d${idx+1}（${names[idx] ?? "d"}）`;
+    }
+    if(l === "f"){
+      const names = [
+        "fxyz",
+        "fz(5z²−3r²)",
+        "fx(5z²−r²)",
+        "fy(5z²−r²)",
+        "fz(x²−y²)",
+        "fx(x²−3y²)",
+        "fy(3x²−y²)"
+      ];
+      return `f${idx+1}（${names[idx] ?? "f"}）`;
+    }
+    return variantShort(l, idx);
+  }
+
+  /* =========================
+   * Three.js：统一场景
+   * ========================= */
+  const view3d = document.getElementById("view3d");
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x050505, 0.02);
+
+  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 2000);
+  camera.position.set(0,0,28);
+
+  const renderer = new THREE.WebGLRenderer({antialias:true, alpha:true, preserveDrawingBuffer:true});
+  renderer.setPixelRatio(window.devicePixelRatio);
+  view3d.appendChild(renderer.domElement);
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = 0.9;
+
+  function resize(){
+    const w = view3d.clientWidth;
+    const h = view3d.clientHeight;
+    camera.aspect = w / Math.max(1, h);
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h);
+  }
+  window.addEventListener("resize", resize);
+
+  // tracked objects（用于 SPDF/MO 这类“清场”）
+  let activeObjects = [];
+  function track(obj){
+    scene.add(obj);
+    activeObjects.push(obj);
+    return obj;
+  }
+
+  // shared materials（清场时不要 dispose）
+  const sharedMaterials = new Set();
+
+  function disposeObject(obj){
+    if(!obj) return;
+    if(obj.geometry) obj.geometry.dispose();
+    if(obj.material){
+      if(Array.isArray(obj.material)){
+        obj.material.forEach(m=>{
+          if(m && !sharedMaterials.has(m)) m.dispose();
+        });
+      }else{
+        if(obj.material && !sharedMaterials.has(obj.material)) obj.material.dispose();
+      }
+    }
+  }
+  function clearScene(){
+    for(const o of activeObjects){
+      scene.remove(o);
+      disposeObject(o);
+    }
+    activeObjects = [];
+  }
+
+  function setOverlay(title, sub){
+    document.getElementById("ovTitle").textContent = title || "";
+    document.getElementById("ovSub").textContent = sub || "";
+  }
+  function setLegend(line1HTML, line2Text){
+    document.getElementById("legendLine1").innerHTML = line1HTML || "";
+    document.getElementById("legendLine2").textContent = line2Text || "";
+  }
+
+  // animation
+  let spinObject = null;
+  let spinSpeed = 0;
+  function animate(){
+    requestAnimationFrame(animate);
+    controls.update();
+    if(spinObject) spinObject.rotation.y += spinSpeed;
+    renderer.render(scene, camera);
+  }
+  animate();
+  resize();
+
+  /* =========================
+   * 电子云：子层叠加（并针对大原子做“更明显”处理）
+   * ========================= */
+  const cloudColors = {
+    s: new THREE.Color(0x00ffff), // cyan
+    p: new THREE.Color(0xff66ff), // pink
+    d: new THREE.Color(0x66ff66), // green
+    f: new THREE.Color(0xffd27a)  // warm yellow
+  };
+
+  const cloudPointMaterial = new THREE.PointsMaterial({
+    size: 0.13,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.86,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
+  });
+  sharedMaterials.add(cloudPointMaterial);
+
+  // cloud state
+  const clouds = new Map(); // "2p" -> {points,item,row}
+  let currentAtomForCloud = null;
+  let currentConfigList = [];
+  let cloudVisibilityMode = "valence"; // valence | all
+  let cloudFocus = null; // subshell focus string
+  let orbitalFocus = null; // {tag, oi, spin}  oi=orbital index
+  let orbitalFocusPoints = null;
+
+  // UI maps
+  const subshellRowMap = new Map();      // tag -> row
+  const orbitalBoxMap = new Map();       // `${tag}:${oi}` -> box div
+  const orbitalSpinMap = new Map();      // `${tag}:${oi}:${spin}` -> arrow span
+
+  // 大原子压缩：只“缩大不放小”（nMax 小的保持原比例）
+  const CLOUD_OUTER_TARGET = 22; // 外层最大半径上限（视觉用）
+  let cloudScale = 1;            // 每次渲染根据 nMax 计算
+
+  function sampleUniformSphere(R){
+    const u = Math.random();
+    const v = Math.random();
+    const w = Math.random();
+    const cosT = 2*u - 1;
+    const phi = 2*Math.PI*v;
+    const r = R * Math.cbrt(w);
+    const sinT = Math.sqrt(1 - cosT*cosT);
+    const x = r * sinT * Math.cos(phi);
+    const y = r * sinT * Math.sin(phi);
+    const z = r * cosT;
+    return {x,y,z,r};
+  }
+
+  function probAt(x,y,z,n,l){
+    const r = Math.sqrt(x*x+y*y+z*z);
+    if(r < 1e-6) return 0;
+
+    const nx = x/r, ny = y/r, nz = z/r;
+
+    // scale 同步乘 cloudScale：缩大原子时让分布更集中
+    const scale = 1.85 * n * cloudScale;
+    const rho = r / scale;
+
+    // radial: 简化形式（视觉）
+    let radial = Math.exp(-2.0 * rho);
+    if(l === 's' && n > 1){
+      radial *= (0.35 + 0.65 * Math.abs(Math.sin(Math.PI * rho)));
+    }
+
+    // angular: 只用于“子层外观”（不区分 px/py/pz）
+    let angular = 1.0;
+    if(l === 'p'){
+      angular = (Math.abs(nx) + Math.abs(ny) + Math.abs(nz));
+    }else if(l === 'd'){
+      angular = (Math.abs(nx*ny) + Math.abs(ny*nz) + Math.abs(nx*nz) + 0.6*Math.abs(nx*nx - ny*ny));
+    }else if(l === 'f'){
+      angular = Math.abs(nx*ny*nz) * 3.2;
+    }
+
+    let amp = radial;
+    if(l === 'p') amp = radial * rho * angular;
+    else if(l === 'd') amp = radial * (rho*rho) * angular;
+    else if(l === 'f') amp = radial * (rho*rho*rho) * angular;
+
+    return amp*amp;
+  }
+
+  function estimatePMax(n,l,R){
+    let maxP = 0;
+    for(let i=0;i<2200;i++){
+      const p = sampleUniformSphere(R);
+      const v = probAt(p.x,p.y,p.z,n,l);
+      if(v > maxP) maxP = v;
+    }
+    return Math.max(1e-12, maxP * 1.08);
+  }
+
+  function pointsForSubshell(item, q){
+    const mult = (item.l==='f') ? 1.55 : (item.l==='d') ? 1.20 : 1.0;
+    const base = 360 + item.count*260 + item.n*90;
+    return Math.max(900, Math.round(base * mult * q));
+  }
+
+  function createCloudPoints(item, q, nMax){
+    // 只缩大不放小：nMax 越大，cloudScale 越小 → 云更“浓”
+    const Rraw = item.n * 6.0;
+    const R = Rraw * cloudScale;
+
+    const pMax = estimatePMax(item.n, item.l, R);
+    const target = pointsForSubshell(item, q);
+
+    const positions = [];
+    const cols = [];
+
+    const baseC = cloudColors[item.l] || cloudColors.s;
+
+    let i=0, attempts=0;
+    const maxAttempts = Math.max(240000, target * 85);
+
+    // 大原子更明显：外侧衰减更慢一点
+    const fadeExp = 0.55 * (0.72 + 0.28*cloudScale);
+
+    while(i < target && attempts < maxAttempts){
+      attempts++;
+      const s = sampleUniformSphere(R);
+      const p = probAt(s.x,s.y,s.z,item.n,item.l);
+      const accept = Math.min(1, p / pMax);
+      if(Math.random() < accept){
+        positions.push(s.x,s.y,s.z);
+
+        const rho = s.r / (1.85 * item.n * cloudScale);
+        const fade = Math.exp(-fadeExp * rho) * (0.48 + 0.52*Math.pow(accept, 0.35));
+        cols.push(baseC.r * fade, baseC.g * fade, baseC.b * fade);
+        i++;
+      }
+    }
+
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geom.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+
+    const pts = new THREE.Points(geom, cloudPointMaterial);
+    pts.name = item.name;
+    return pts;
+  }
+
+  function clearOrbitalFocusPoints(){
+    if(orbitalFocusPoints){
+      scene.remove(orbitalFocusPoints);
+      orbitalFocusPoints.geometry.dispose();
+      orbitalFocusPoints = null;
+    }
+  }
+
+  function clearCloudScene(){
+    clearOrbitalFocusPoints();
+    for(const {points} of clouds.values()){
+      scene.remove(points);
+      points.geometry.dispose();
+    }
+    clouds.clear();
+  }
+
+  function isValenceSubshell(item, nMax){
+    if(item.n === nMax) return true;
+    if(item.l === 'd' && item.n === nMax - 1) return true;
+    if(item.l === 'f' && item.n === nMax - 2) return true;
+    return false;
+  }
+
+  function setCloudRowState(row, on){
+    if(!row) return;
+    row.classList.toggle("off", !on);
+  }
+
+  function clearHighlights(){
+    for(const row of subshellRowMap.values()){
+      row.classList.remove("active");
+    }
+    for(const box of orbitalBoxMap.values()){
+      box.classList.remove("active");
+    }
+  }
+
+  function syncCloudStatus(){
+    const el = document.getElementById("cloudViewStatus");
+    if(!el) return;
+
+    if(!currentAtomForCloud){
+      el.textContent = "";
+      return;
+    }
+
+    if(orbitalFocus){
+      const {tag, oi, spin} = orbitalFocus;
+      const {n,l} = splitOrbitalTag(tag);
+      const vS = variantShort(l, oi);
+      const spinTxt = spin === "up" ? " ↑" : (spin === "down" ? " ↓" : "");
+      el.textContent = `当前显示：${tag} ${vS}${spinTxt}（单轨道；再点一次取消）`;
+      return;
+    }
+
+    if(cloudFocus){
+      el.textContent = `当前显示：${cloudFocus}（单子层；再点一次取消）`;
+      return;
+    }
+
+    el.textContent = (cloudVisibilityMode === "all")
+      ? "当前显示：全部子层"
+      : "当前显示：价层";
+  }
+
+  function syncAtomOverlay(){
+    if(!currentAtomForCloud) return;
+    const atom = currentAtomForCloud;
+    const cn = nameCN[atom.sym] ? `（${nameCN[atom.sym]}）` : "";
+
+    // orbital focus：相位云（并显示自旋）
+    if(orbitalFocus){
+      const {tag, oi, spin} = orbitalFocus;
+      const {n,l} = splitOrbitalTag(tag);
+      const vS = variantShort(l, oi);
+      const spinTxt = spin === "up" ? " ↑" : (spin === "down" ? " ↓" : "");
+      const subText = (spin === "up" || spin === "down")
+        ? `${atom.sym}${cn} 的单轨道云（颜色表示自旋；点密度≈|ψ|²）。`
+        : `${atom.sym}${cn} 的单轨道相位云（ψ 的正负用颜色区分；点密度≈|ψ|²）。`;
+      setOverlay(`${atom.sym} 电子云｜${tag} ${vS}${spinTxt}`, subText);
+
+      const pal = paletteForSpin(spin);
+      // 未指定自旋：显示相位；指定自旋：用颜色区分 ↑/↓
+      if(spin === "up" || spin === "down"){
+        const spinLabel = (spin === "up") ? "自旋：↑" : "自旋：↓";
+        setLegend(
+          `<span class="key" style="background:${pal.posHex};"></span>${spinLabel}`,
+          "点密度≈|ψ|²；形状由量子数 n、l 与取向决定。"
+        );
+      }else{
+        setLegend(
+          `<span class="key" style="background:${pal.posHex};"></span>正相位（+）&nbsp;&nbsp;`+
+          `<span class="key" style="background:${pal.negHex};"></span>负相位（−）`,
+          "相位来自波函数 ψ 的符号；概率密度为 |ψ|²。"
+        );
+      }
+return;
+    }
+
+    // subshell/overall：子层颜色
+    const suffix = cloudFocus
+      ? `｜${cloudFocus}`
+      : (cloudVisibilityMode==="all" ? "｜全部" : "｜价层");
+
+    setOverlay(`${atom.sym} 电子云${suffix}`, `${atom.sym}${cn} 的子层叠加点云（颜色表示 s/p/d/f）。`);
+    setLegend(
+      `<span class="key" style="background:#00ffff;"></span>s &nbsp;`+
+      `<span class="key" style="background:#ff66ff;"></span>p &nbsp;`+
+      `<span class="key" style="background:#66ff66;"></span>d &nbsp;`+
+      `<span class="key" style="background:#ffd27a;"></span>f`,
+      ""
+    );
+  }
+
+  function applyCloudView(){
+    const nMax = currentConfigList.length ? Math.max(...currentConfigList.map(c=>c.n)) : 1;
+
+    clearHighlights();
+    clearOrbitalFocusPoints();
+
+    // 先把所有子层云隐藏（由下面条件决定显示）
+    for(const item of currentConfigList){
+      const entry = clouds.get(item.name);
+      if(!entry) continue;
+      entry.points.visible = false;
+      setCloudRowState(entry.row, false);
+    }
+
+    if(orbitalFocus){
+      // 单轨道：隐藏所有子层叠加，画单轨道相位云
+      const entry = clouds.get(orbitalFocus.tag);
+      if(entry?.row){
+        entry.row.classList.add("active");
+        entry.row.classList.remove("off");
+      }
+      const key = `${orbitalFocus.tag}:${orbitalFocus.oi}`;
+      const boxEl = orbitalBoxMap.get(key);
+      if(boxEl) boxEl.classList.add("active");
+
+      renderFocusedOrbital(nMax);
+    } else if(cloudFocus){
+      // 单子层：只显示该子层的“子层云”
+      for(const item of currentConfigList){
+        const entry = clouds.get(item.name);
+        if(!entry) continue;
+        const on = (item.name === cloudFocus);
+        entry.points.visible = on;
+        setCloudRowState(entry.row, on);
+        if(on && entry.row){
+          entry.row.classList.add("active");
+          entry.row.classList.remove("off");
+        }
+      }
+    } else {
+      // 总览：价层/全部
+      for(const item of currentConfigList){
+        const entry = clouds.get(item.name);
+        if(!entry) continue;
+        const on = (cloudVisibilityMode === "all") ? true : isValenceSubshell(item, nMax);
+        entry.points.visible = on;
+        setCloudRowState(entry.row, on);
+      }
+    }
+
+    // buttons state
+    const bV = document.getElementById("btnValenceAtom");
+    const bA = document.getElementById("btnAllAtom");
+    if(bV && bA){
+      if(orbitalFocus || cloudFocus){
+        bV.classList.remove("active");
+        bA.classList.remove("active");
+      }else{
+        bV.classList.toggle("active", cloudVisibilityMode==="valence");
+        bA.classList.toggle("active", cloudVisibilityMode==="all");
+      }
+    }
+
+    // framing：用“最大半径上限”推相机距离（更稳定）
+    const outerR = Math.min(nMax * 6.0, CLOUD_OUTER_TARGET); // 缩大后上限
+    const z = outerR + 12;
+    camera.position.set(0, 0, z);
+    controls.target.set(0,0,0);
+    controls.update();
+
+    spinObject = null;
+    spinSpeed = 0;
+
+    syncCloudStatus();
+    syncAtomOverlay();
+  }
+
+  function applyCloudVisibility(mode){
+    cloudVisibilityMode = mode;
+    cloudFocus = null;
+    orbitalFocus = null;
+    applyCloudView();
+  }
+
+  function toggleSubshellFocus(tag){
+    orbitalFocus = null;
+    cloudFocus = (cloudFocus === tag) ? null : tag;
+    applyCloudView();
+  }
+
+  function toggleOrbitalFocus(tag, oi, spin){
+    const same = orbitalFocus && orbitalFocus.tag===tag && orbitalFocus.oi===oi && orbitalFocus.spin===spin;
+    cloudFocus = null;
+    orbitalFocus = same ? null : {tag, oi, spin};
+    applyCloudView();
+  }
+
+  function renderElementCloud3D(atom, qFactor){
+    currentAtomForCloud = atom;
+
+    const cfg = buildElectronConfig(atom.Z);
+    currentConfigList = cfg.list;
+
+    const nMax = currentConfigList.length ? Math.max(...currentConfigList.map(c=>c.n)) : 1;
+
+    // 只缩大：nMax 越大，cloudScale 越小
+    cloudScale = Math.min(1.0, CLOUD_OUTER_TARGET / (Math.max(1, nMax) * 6.0));
+
+    // 大原子更明显：点更大更亮，雾更淡一点
+    cloudPointMaterial.size = 0.13 * (1 + (1-cloudScale)*0.85);
+    cloudPointMaterial.opacity = 0.86 + (1-cloudScale)*0.10;
+    scene.fog.density = 0.02 * (0.75 + 0.25*cloudScale);
+
+    clearCloudScene();
+
+    // 叠加：外层优先（视觉更舒服）
+    for(const item of [...currentConfigList].reverse()){
+      const points = createCloudPoints(item, qFactor, nMax);
+      scene.add(points);
+      const row = subshellRowMap.get(item.name) || null;
+      clouds.set(item.name, {points, item, row});
+    }
+
+    applyCloudView();
+  }
+
+  /* =========================
+   * 单轨道：通用“相位点云”（px/py/pz, d1..d5, f1..f7）
+   * ========================= */
+  const orbitalMat = new THREE.PointsMaterial({
+    size: 0.15,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.82,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
+  });
+  sharedMaterials.add(orbitalMat);
+
+  const palPhase = {pos: new THREE.Color(0x00ffff), neg: new THREE.Color(0xff0055), posHex:"#00ffff", negHex:"#ff0055"};
+  const palSpinUp = {pos: new THREE.Color(0x00ffff), neg: new THREE.Color(0x00ffff), posHex:"#00ffff", negHex:"#00ffff"};
+  const palSpinDown = {pos: new THREE.Color(0xff66ff), neg: new THREE.Color(0xff66ff), posHex:"#ff66ff", negHex:"#ff66ff"};
+
+  function paletteForSpin(spin){
+    // 选了自旋：用颜色区分↑/↓（不强调相位）
+    if(spin === "up") return palSpinUp;
+    if(spin === "down") return palSpinDown;
+    // 未指定自旋：用相位正负（和 SPDF 一样）
+    return palPhase;
+  }
+
+  function paletteLabel(spin){
+    if(spin === "up") return "自旋：↑";
+    if(spin === "down") return "自旋：↓";
+    return "相位：+/−";
+  }
+
+  function angularValue(l, variantId, nx, ny, nz){
+    if(l === "s") return 1;
+
+    if(l === "p"){
+      if(variantId === "px") return nx;
+      if(variantId === "py") return ny;
+      return nz; // pz
+    }
+
+    if(l === "d"){
+      switch(variantId){
+        case "d1": return nx*ny;                 // dxy
+        case "d2": return ny*nz;                 // dyz
+        case "d3": return 0.5*(3*nz*nz - 1);     // dz^2
+        case "d4": return nx*nz;                 // dxz
+        case "d5": return nx*nx - ny*ny;         // dx^2-y^2
+        default: return nx*nx - ny*ny;
+      }
+    }
+
+    if(l === "f"){
+      switch(variantId){
+        case "f1": return nx*ny*nz;                           // fxyz
+        case "f2": return nz*(5*nz*nz - 3);                   // z(5z^2-3r^2)
+        case "f3": return nx*(5*nz*nz - 1);                   // x(5z^2-r^2)
+        case "f4": return ny*(5*nz*nz - 1);                   // y(5z^2-r^2)
+        case "f5": return nz*(nx*nx - ny*ny);                 // z(x^2-y^2)
+        case "f6": return nx*(nx*nx - 3*ny*ny);               // x(x^2-3y^2)
+        case "f7": return ny*(3*nx*nx - ny*ny);               // y(3x^2-y^2)
+        default: return nx*ny*nz;
+      }
+    }
+
+    return 1;
+  }
+
+  function radialPsi(r, n, lNum){
+    // “看起来像”氢原子轨道的简化 radial：尺度 ~ n，且含 r^l
+    const a = 0.92 * n;
+    const rr = r / a;
+    let psi = Math.pow(rr, lNum) * Math.exp(-rr);
+    // 给 s 加一个近似节点（2s 视觉）
+    if(lNum === 0 && n >= 2){
+      psi *= (1 - rr/(n*1.3));
+    }
+    return psi;
+  }
+
+  function orbitalPsi(spec, x, y, z){
+    const {n,l,variantId} = spec;
+    const r = Math.sqrt(x*x + y*y + z*z);
+    if(r < 1e-6) return 0;
+    const nx = x/r, ny = y/r, nz = z/r;
+    const lNum = lToNum(l);
+    const ang = angularValue(l, variantId, nx, ny, nz);
+    const rad = radialPsi(r, n, lNum);
+    return rad * ang;
+  }
+
+  function makeOrbitalPoints(spec, particleCount, range, palette){
+    // 粗估 pMax
+    let pMax = 0;
+    for(let i=0;i<7000;i++){
+      const x = (Math.random()-0.5)*2*range;
+      const y = (Math.random()-0.5)*2*range;
+      const z = (Math.random()-0.5)*2*range;
+      const psi = orbitalPsi(spec, x,y,z);
+      const p = psi*psi;
+      if(p > pMax) pMax = p;
+    }
+    pMax = Math.max(1e-10, pMax);
+
+    const positions = [];
+    const colors = [];
+    let count = 0;
+    let attempts = 0;
+    const maxAttempts = Math.max(800000, particleCount * 90);
+
+    while(count < particleCount && attempts < maxAttempts){
+      attempts++;
+      const x = (Math.random()-0.5)*2*range;
+      const y = (Math.random()-0.5)*2*range;
+      const z = (Math.random()-0.5)*2*range;
+
+      const psi = orbitalPsi(spec, x,y,z);
+      const p = psi*psi;
+      const acc = Math.min(1, p / pMax);
+      if(Math.random() < acc){
+        positions.push(x,y,z);
+        const c = (psi >= 0) ? palette.pos : palette.neg;
+        colors.push(c.r,c.g,c.b);
+        count++;
+      }
+    }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+    return new THREE.Points(geo, orbitalMat);
+  }
+
+  function specFromSubshell(tag, oi){
+    const {n,l} = splitOrbitalTag(tag);
+    let variantId = variantShort(l, oi);
+    // d1.. / f1.. 的 short 就是 id；p 是 px/py/pz
+    return {n, l, variantId};
+  }
+
+  function renderFocusedOrbital(nMax){
+    if(!currentAtomForCloud || !orbitalFocus) return;
+
+    const q = Number(document.getElementById("cloudQualityAtom").value || "1");
+    const count = Math.round(22000 * q);
+
+    const spec = specFromSubshell(orbitalFocus.tag, orbitalFocus.oi);
+
+    // range 用 cloudScale 统一尺度：大原子也不会“摊太散”
+    const baseR = spec.n * 6.0 * cloudScale;
+    const range = Math.min(24, Math.max(10, baseR * 1.15));
+
+    const pal = paletteForSpin(orbitalFocus.spin);
+
+    orbitalFocusPoints = makeOrbitalPoints(spec, count, range, pal);
+    scene.add(orbitalFocusPoints);
+
+    // 让轨道慢慢转一点点（更立体）
+    spinObject = orbitalFocusPoints;
+    spinSpeed = 0.002;
+  }
+
+  /* =========================
+   * 左下：渲染“轨道占据图”（行=子层，格=单轨道）
+   * ========================= */
+  function renderAtomBoxOutput(atom){
+    const {Z, sym} = atom;
+    const cn = nameCN[sym] ? `（${nameCN[sym]}）` : "";
+    const cfg = buildElectronConfig(Z);
+
+    document.getElementById("atomSummary").innerHTML =
+      `当前：<b>${sym}</b> ${cn}，Z=${Z}`;
+
+    document.getElementById("atomConf").textContent =
+      cfg.parts.length ? cfg.parts.join("  ") : "—";
+
+    const diagram = document.getElementById("atomDiagram");
+    diagram.innerHTML = "";
+
+    subshellRowMap.clear();
+    orbitalBoxMap.clear();
+    orbitalSpinMap.clear();
+
+    const ns = Array.from(cfg.byN.keys()).sort((a,b)=>a-b);
+    if(ns.length===0){
+      diagram.innerHTML = `<div class="small">没有可显示的轨道。</div>`;
+      return cfg;
+    }
+
+    for(const n of ns){
+      const shell = document.createElement("div");
+      shell.className = "shellBlock";
+
+      const header = document.createElement("div");
+      header.className = "shellHeader";
+      header.innerHTML = `<b>第 ${n} 层（n=${n}）</b><span class="small">同一 l 有 2l+1 个轨道</span>`;
+      shell.appendChild(header);
+
+      const subs = cfg.byN.get(n);
+      const order = {s:0,p:1,d:2,f:3,g:4};
+      subs.sort((a,b)=>(order[a.l]??99)-(order[b.l]??99));
+
+      for(const sub of subs){
+        const row = document.createElement("div");
+        row.className = "subshellRow";
+        row.dataset.subshell = sub.tag;
+        row.title = "点击该行：只显示该子层（再点取消）";
+        subshellRowMap.set(sub.tag, row);
+
+        row.addEventListener("click", (ev)=>{
+          ev.preventDefault();
+          toggleSubshellFocus(sub.tag);
+        });
+
+        const label = document.createElement("div");
+        label.className = "subshellLabel";
+        label.textContent = `${sub.tag} (${sub.e})`;
+        row.appendChild(label);
+
+        const boxesWrap = document.createElement("div");
+        boxesWrap.className = "boxes";
+
+        const arrows = fillBoxArrows(sub.l, sub.e);
+
+        for(let oi=0; oi<arrows.length; oi++){
+          const bx = arrows[oi];
+
+          const box = document.createElement("div");
+          box.className = "box";
+          box.dataset.subshell = sub.tag;
+          box.dataset.oi = String(oi);
+          box.title = `${sub.tag} ${variantFull(sub.l, oi)}：点击画该单轨道（再点取消）`;
+
+          // 点击盒子：选择“单轨道（不指定自旋）”
+          box.addEventListener("click", (ev)=>{
+            ev.stopPropagation();
+            toggleOrbitalFocus(sub.tag, oi, null);
+          });
+
+          const inner = document.createElement("div");
+          inner.className = "boxInner";
+
+          const arrowRow = document.createElement("div");
+          arrowRow.className = "arrowRow";
+
+          if(bx.up){
+            const up = document.createElement("span");
+            up.className = "arrowBtn spinUp";
+            up.textContent = "↑";
+            up.title = "点击：选自旋 ↑（颜色随自旋变化）";
+            up.addEventListener("click", (ev)=>{
+              ev.stopPropagation();
+              toggleOrbitalFocus(sub.tag, oi, "up");
+            });
+            arrowRow.appendChild(up);
+            orbitalSpinMap.set(`${sub.tag}:${oi}:up`, up);
+          }
+          if(bx.down){
+            const dn = document.createElement("span");
+            dn.className = "arrowBtn spinDown";
+            dn.textContent = "↓";
+            dn.title = "点击：选自旋 ↓（颜色随自旋变化）";
+            dn.addEventListener("click", (ev)=>{
+              ev.stopPropagation();
+              toggleOrbitalFocus(sub.tag, oi, "down");
+            });
+            arrowRow.appendChild(dn);
+            orbitalSpinMap.set(`${sub.tag}:${oi}:down`, dn);
+          }
+          if(!bx.up && !bx.down){
+            // 空轨道：留个占位，方便点选
+            const dot = document.createElement("span");
+            dot.style.opacity = "0.35";
+            dot.textContent = "·";
+            arrowRow.appendChild(dot);
+          }
+
+          const tagEl = document.createElement("div");
+          tagEl.className = "orbTag";
+          tagEl.textContent = variantShort(sub.l, oi);
+
+          inner.appendChild(arrowRow);
+          inner.appendChild(tagEl);
+          box.appendChild(inner);
+
+          boxesWrap.appendChild(box);
+          orbitalBoxMap.set(`${sub.tag}:${oi}`, box);
+        }
+
+        row.appendChild(boxesWrap);
+        shell.appendChild(row);
+      }
+
+      diagram.appendChild(shell);
+    }
+
+    return cfg;
+  }
+
+  /* =========================
+   * SPDF / 单轨道模式
+   * ========================= */
+  function spdfVariantOptions(family){
+    if(family === "1s") return [{id:"s", label:"s"}];
+    if(family === "2s") return [{id:"s", label:"s"}];
+    if(family === "2p") return [
+      {id:"px", label:"px"},
+      {id:"py", label:"py"},
+      {id:"pz", label:"pz"},
+    ];
+    if(family === "3d") return [
+      {id:"d1", label:"d1（dxy）"},
+      {id:"d2", label:"d2（dyz）"},
+      {id:"d3", label:"d3（dz²）"},
+      {id:"d4", label:"d4（dxz）"},
+      {id:"d5", label:"d5（dx²−y²）"},
+    ];
+    if(family === "4f") return [
+      {id:"f1", label:"f1（fxyz）"},
+      {id:"f2", label:"f2（fz(5z²−3r²)）"},
+      {id:"f3", label:"f3（fx(5z²−r²)）"},
+      {id:"f4", label:"f4（fy(5z²−r²)）"},
+      {id:"f5", label:"f5（fz(x²−y²)）"},
+      {id:"f6", label:"f6（fx(x²−3y²)）"},
+      {id:"f7", label:"f7（fy(3x²−y²)）"},
+    ];
+    return [{id:"s", label:"s"}];
+  }
+
+  function specFromFamilyVariant(family, variantId){
+    const n = Number(family[0]);
+    const l = family[1];
+    return {n, l, variantId};
+  }
+
+  function spdfDesc(spec){
+    const n = spec.n;
+    const l = spec.l;
+    const v = spec.variantId;
+
+    const q = (l==="s") ? `n=${n}, l=0`
+            : (l==="p") ? `n=${n}, l=1`
+            : (l==="d") ? `n=${n}, l=2`
+            : `n=${n}, l=3`;
+
+    let title = `${n}${l} 轨道 (${q})`;
+    if(l==="p") title = `${n}p（${v}）轨道 (${q})`;
+    if(l==="d") title = `${n}d（${v}）轨道 (${q})`;
+    if(l==="f") title = `${n}f（${v}）轨道 (${q})`;
+
+    // 两三句：原子/量子解释（不长）
+    let text = "";
+    if(l==="s"){
+      text = "s 轨道球对称。颜色表示波函数 ψ 的相位正负，而概率密度是 |ψ|²。相位在轨道叠加（如成键/反键）时决定干涉。";
+    }else if(l==="p"){
+      text = "p 轨道有三个简并取向（px/py/pz），对应不同的角向分布。两叶相位相反，节点面处几乎无点。相位对分子成键的“同相/反相叠加”很关键。";
+    }else if(l==="d"){
+      text = "d 轨道有五个简并取向（这里用 d1–d5 标号）。形状来自球谐函数的角向部分，节点面把空间分成相位相反的瓣。相位影响杂化与成键的重叠。";
+    }else{
+      text = "f 轨道有七个简并取向（f1–f7）。角向结构更复杂，节点更多；颜色仍表示 ψ 的相位。相位在稀土/锕系的轨道叠加与磁性理解中很重要。";
+    }
+    return {title, text};
+  }
+
+  function renderSPDF(spec, particleCount){
+    clearScene();
+    clearCloudScene(); // 切换模式时把电子云也清掉
+    spinObject = null;
+    spinSpeed = 0;
+
+    // 让不同 n 的轨道尺寸有所区分，但不至于过大
+    const range = Math.min(24, 10 + spec.n * 3.0);
+
+    const pts = makeOrbitalPoints(spec, particleCount, range, palPhase);
+    track(pts);
+
+    camera.position.set(0,0,26);
+    controls.target.set(0,0,0);
+    controls.update();
+
+    const {title, text} = spdfDesc(spec);
+    setOverlay(title, text);
+    setLegend(
+      `<span class="key" style="background:#00ffff;"></span>正相位（+）&nbsp;&nbsp;`+
+      `<span class="key" style="background:#ff0055;"></span>负相位（−）`,
+      "节点处几乎无点；滚轮缩放。"
+    );
+
+    // 慢旋转
+    spinObject = pts;
+    spinSpeed = 0.002;
+
+    document.getElementById("spdfDescTitle").textContent = title;
+    document.getElementById("spdfDescText").textContent = text;
+  }
+
+  /* =========================
+   * MO：2D + 3D（沿用之前版本）
+   * ========================= */
+  const diatomics = [
+    {key:"H2",  a:"H", Z:1},
+    {key:"He2", a:"He", Z:2},
+    {key:"Li2", a:"Li", Z:3},
+    {key:"Be2", a:"Be", Z:4},
+    {key:"B2",  a:"B", Z:5},
+    {key:"C2",  a:"C", Z:6},
+    {key:"N2",  a:"N", Z:7},
+    {key:"O2",  a:"O", Z:8},
+    {key:"F2",  a:"F", Z:9},
+    {key:"Ne2", a:"Ne", Z:10},
+  ];
+
+  function moLevelsFor(molKey){
+    const base = [
+      {name:"σ1s", deg:1, bonding:true},
+      {name:"σ*1s",deg:1, bonding:false},
+    ];
+    if(molKey==="H2" || molKey==="He2") return base;
+
+    const mid = [
+      {name:"σ2s", deg:1, bonding:true},
+      {name:"σ*2s",deg:1, bonding:false},
+    ];
+    const isBN2 = (molKey==="B2" || molKey==="C2" || molKey==="N2");
+    const pset = isBN2 ? [
+      {name:"π2p",  deg:2, bonding:true},
+      {name:"σ2p",  deg:1, bonding:true},
+      {name:"π*2p", deg:2, bonding:false},
+      {name:"σ*2p", deg:1, bonding:false},
+    ] : [
+      {name:"σ2p",  deg:1, bonding:true},
+      {name:"π2p",  deg:2, bonding:true},
+      {name:"π*2p", deg:2, bonding:false},
+      {name:"σ*2p", deg:1, bonding:false},
+    ];
+    return base.concat(mid, pset);
+  }
+
+  function fillMO(levels, electrons){
+    const filled = [];
+    let e = electrons;
+    let bondingE = 0, antibondingE = 0;
+    let anyUnpaired = false;
+
+    for(const lvl of levels){
+      const orbitals = Array.from({length:lvl.deg}, ()=>({up:false, down:false}));
+      for(let i=0;i<orbitals.length && e>0;i++){ orbitals[i].up = true; e--; }
+      for(let i=0;i<orbitals.length && e>0;i++){ orbitals[i].down = true; e--; }
+
+      let count = 0;
+      for(const o of orbitals){
+        if(o.up) count++;
+        if(o.down) count++;
+        if((o.up && !o.down) || (!o.up && o.down)) anyUnpaired = true;
+      }
+      if(lvl.bonding) bondingE += count;
+      else antibondingE += count;
+
+      filled.push({lvl, orbitals, count});
+    }
+    return {filled, bondingE, antibondingE, anyUnpaired, leftover:e};
+  }
+
+  function renderMO2D(molKey){
+    const mol = diatomics.find(x=>x.key===molKey);
+    const totalElectrons = 2*mol.Z;
+
+    document.getElementById("moSummary").innerHTML =
+      `当前：<b>${mol.key}</b>（每个原子 Z=${mol.Z}，总电子数 = ${totalElectrons}）`;
+
+    const levels = moLevelsFor(molKey);
+    const res = fillMO(levels, totalElectrons);
+
+    const bondOrder = (res.bondingE - res.antibondingE)/2;
+    document.getElementById("bondOrder").textContent = bondOrder.toString();
+
+    const magnet = res.anyUnpaired ? "顺磁（有未成对电子）" : "抗磁（全成对）";
+    const magnetEl = document.getElementById("magnet");
+    magnetEl.textContent = magnet;
+    magnetEl.className = res.anyUnpaired ? "warn" : "ok";
+
+    const isBN2 = (molKey==="B2" || molKey==="C2" || molKey==="N2");
+    const note = (molKey==="H2"||molKey==="He2")
+      ? "H₂/He₂：只考虑 1s → σ1s、σ*1s。"
+      : (isBN2
+        ? "B₂–N₂：常用顺序 π2p < σ2p（s–p 混合）。"
+        : "O₂–Ne₂：常用顺序 σ2p < π2p。");
+    document.getElementById("moNotes").textContent = note;
+
+    const fillParts = [];
+    for(const item of res.filled){
+      if(item.count<=0) continue;
+      fillParts.push(`${item.lvl.name}^${item.count}`);
+    }
+    document.getElementById("moFillText").textContent =
+      fillParts.length ? fillParts.join("  ") : "—";
+
+    const moDiagram = document.getElementById("moDiagram");
+    moDiagram.innerHTML = "";
+    const display = [...res.filled].reverse();
+
+    for(const item of display){
+      const row = document.createElement("div");
+      row.className = "level";
+
+      const nm = document.createElement("div");
+      nm.className = "lvlName";
+      nm.textContent = item.lvl.name + (item.lvl.bonding ? "" : "（*）");
+      row.appendChild(nm);
+
+      const line = document.createElement("div");
+      line.className = "lvlLine";
+      row.appendChild(line);
+
+      const boxes = document.createElement("div");
+      boxes.className = "lvlBoxes";
+
+      for(const o of item.orbitals){
+        const b = document.createElement("div");
+        b.className = "moBox";
+        const up = o.up ? "↑" : "";
+        const down = o.down ? "↓" : "";
+        b.innerHTML = `<span class="arrow">${up}${down}</span>`;
+        boxes.appendChild(b);
+      }
+
+      row.appendChild(boxes);
+      moDiagram.appendChild(row);
+    }
+
+    updateMO3DSelect(molKey, levels, res);
+    if(window.refreshControlWidths) window.refreshControlWidths();
+    return {levels, res};
+  }
+
+  const moPointMaterial = new THREE.PointsMaterial({
+    size: 0.14,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.88,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false
+  });
+  sharedMaterials.add(moPointMaterial);
+
+  function updateMO3DSelect(molKey, levels, fillRes){
+    const sel = document.getElementById("mo3dSelect");
+    sel.innerHTML = "";
+
+    const filledLevels = fillRes.filled.filter(x=>x.count>0).map(x=>x.lvl.name);
+    const homo = filledLevels.length ? filledLevels[filledLevels.length-1] : levels[0].name;
+
+    let lumo = null;
+    for(const x of fillRes.filled){
+      const cap = x.lvl.deg * 2;
+      if(x.count < cap){ lumo = x.lvl.name; break; }
+    }
+    lumo = lumo || levels[levels.length-1].name;
+
+    const mkOpt = (value, label)=>{
+      const o = document.createElement("option");
+      o.value = value;
+      o.textContent = label;
+      return o;
+    };
+
+    sel.appendChild(mkOpt(homo, `HOMO：${homo}`));
+    sel.appendChild(mkOpt(lumo, `LUMO：${lumo}`));
+    sel.appendChild(mkOpt("", "—— 其它 ——"));
+    for(const lvl of levels){
+      sel.appendChild(mkOpt(lvl.name, lvl.name));
+    }
+    sel.value = homo;
+  }
+
+  function psi1s(r){ return Math.exp(-r); }
+  function psi2s(r){ return (2 - r) * Math.exp(-r/2); }
+  function psi2p(r, dir){ return (r * Math.exp(-r/2)) * dir; }
+
+  function renderMO3D(molKey, moName, particleCount){
+    clearScene();
+    clearCloudScene();
+    spinObject = null;
+    spinSpeed = 0;
+
+    const d = 6.2;
+    const A = new THREE.Vector3(-d/2, 0, 0);
+    const B = new THREE.Vector3( d/2, 0, 0);
+
+    const isAnti = moName.includes("*");
+    const isPi = moName.includes("π");
+    const n2 = moName.includes("2");
+    const aoType = n2 ? (moName.includes("2s") ? "2s" : "2p") : "1s";
+    const axis = isPi ? new THREE.Vector3(0,1,0) : new THREE.Vector3(1,0,0);
+
+    function aoValue(pos, center){
+      const v = new THREE.Vector3().subVectors(pos, center);
+      const r = v.length();
+      if(r < 1e-6) return 0;
+      if(aoType === "1s") return psi1s(r);
+      if(aoType === "2s") return psi2s(r);
+      const dir = v.normalize().dot(axis);
+      return psi2p(r, dir);
+    }
+
+    function moPsi(pos){
+      const a = aoValue(pos, A);
+      const b = aoValue(pos, B);
+      return isAnti ? (a - b) : (a + b);
+    }
+
+    const maxRange = 12;
+    let pMax = 0;
+    for(let i=0;i<16000;i++){
+      const x = (Math.random()-0.5)*2*maxRange;
+      const y = (Math.random()-0.5)*2*maxRange;
+      const z = (Math.random()-0.5)*2*maxRange;
+      const psi = moPsi(new THREE.Vector3(x,y,z));
+      const p = psi*psi;
+      if(p>pMax) pMax = p;
+    }
+    pMax = Math.max(1e-8, pMax);
+
+    const positions = [];
+    const colors = [];
+    let count = 0;
+    let attempts = 0;
+    const maxAttempts = 2000000;
+
+    while(count < particleCount && attempts < maxAttempts){
+      attempts++;
+      const x = (Math.random()-0.5)*2*maxRange;
+      const y = (Math.random()-0.5)*2*maxRange;
+      const z = (Math.random()-0.5)*2*maxRange;
+      const pos = new THREE.Vector3(x,y,z);
+
+      const psi = moPsi(pos);
+      const p = psi*psi;
+      const acc = Math.min(1, p / pMax);
+
+      if(Math.random() < acc){
+        positions.push(x,y,z);
+        const c = (psi>=0) ? palPhase.pos : palPhase.neg;
+        colors.push(c.r,c.g,c.b);
+        count++;
+      }
+    }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+    const pts = new THREE.Points(geo, moPointMaterial);
+    track(pts);
+
+    // nuclei
+    const sph = new THREE.SphereGeometry(0.35, 18, 18);
+    const matN = new THREE.MeshBasicMaterial({color: 0x88aaff});
+    const na = new THREE.Mesh(sph, matN);
+    na.position.copy(A);
+    const nb = new THREE.Mesh(sph, matN);
+    nb.position.copy(B);
+    track(na); track(nb);
+
+    const lineGeo = new THREE.BufferGeometry().setFromPoints([A,B]);
+    const lineMat = new THREE.LineBasicMaterial({color: 0xffffff, transparent:true, opacity:0.25});
+    const line = new THREE.Line(lineGeo, lineMat);
+    track(line);
+
+    camera.position.set(0,0,30);
+    controls.target.set(0,0,0);
+    controls.update();
+
+    setOverlay(`${molKey}：${moName} 的 3D 相位云`, `青/红表示相位正负；节点面处几乎无点。`);
+    setLegend(
+      `<span class="key" style="background:#00ffff;"></span>正相位（+）&nbsp;&nbsp;`+
+      `<span class="key" style="background:#ff0055;"></span>负相位（−）`,
+      "MO 形状是 AO 的线性组合（教学示意）。"
+    );
+  }
+
+  /* =========================
+   * UI：模式切换 / 事件
+   * ========================= */
+  let mode = "atom";
+  let spdfState = {family:"2p", variant:"pz"};
+  let lastMO = null;
+
+  function showError(msg){
+    const el = document.getElementById("errBox");
+    if(!msg){
+      el.style.display = "none";
+      el.textContent = "";
+      return;
+    }
+    el.textContent = msg;
+    el.style.display = "";
+  }
+
+  function setMode(newMode){
+    mode = newMode;
+    showError(null);
+
+    document.querySelectorAll("#modeTabs .tab").forEach(t=>{
+      t.classList.toggle("active", t.getAttribute("data-mode")===newMode);
+    });
+
+    document.getElementById("panelAtom").style.display = (newMode==="atom") ? "" : "none";
+    document.getElementById("panelSPDF").style.display = (newMode==="spdf") ? "" : "none";
+    document.getElementById("panelMO").style.display = (newMode==="mo") ? "" : "none";
+
+    document.getElementById("outAtom").style.display = (newMode==="atom") ? "" : "none";
+    document.getElementById("outSPDF").style.display = (newMode==="spdf") ? "" : "none";
+    document.getElementById("outMO").style.display = (newMode==="mo") ? "" : "none";
+
+    const titleMap = { atom:"电子云", spdf:"单轨道", mo:"MO" };
+    document.getElementById("outTitle").textContent = titleMap[newMode] || "";
+
+    if(newMode==="atom"){
+      const atom = parseAtomInput(document.getElementById("atomInput").value || "O");
+      if(atom){
+        renderAtomBoxOutput(atom);
+        clearScene();
+        const q = Number(document.getElementById("cloudQualityAtom").value || "1");
+        renderElementCloud3D(atom, q);
+        controls.autoRotate = (document.getElementById("autoRotateAtom").value==="on");
+      }
+    }else if(newMode==="spdf"){
+      const spec = specFromFamilyVariant(spdfState.family, spdfState.variant);
+      const q = Number(document.getElementById("spdfQuality").value || "25000");
+      renderSPDF(spec, q);
+      controls.autoRotate = (document.getElementById("autoRotateSPDF").value==="on");
+    }else if(newMode==="mo"){
+      const molKey = document.getElementById("molSelect").value;
+      const r = renderMO2D(molKey);
+      lastMO = {molKey, levels:r.levels, fill:r.res};
+      const moName = document.getElementById("mo3dSelect").value || (r.levels[0]?.name ?? "σ1s");
+      const q = Number(document.getElementById("moQuality").value || "24000");
+      renderMO3D(molKey, moName, q);
+      controls.autoRotate = (document.getElementById("autoRotateMO").value==="on");
+    }
+  }
+
+  // tabs
+  document.querySelectorAll("#modeTabs .tab").forEach(t=>{
+    t.addEventListener("click", ()=>setMode(t.getAttribute("data-mode")));
+  });
+
+  // 电子云
+  document.getElementById("btnAtom").addEventListener("click", ()=>{
+    const atom = parseAtomInput(document.getElementById("atomInput").value);
+    if(!atom) return showError("输入无法识别：请用元素符号（如 O/Fe）或 Z（1–118）。");
+    showError(null);
+
+    renderAtomBoxOutput(atom);
+
+    const q = Number(document.getElementById("cloudQualityAtom").value || "1");
+    const bAll = document.getElementById("btnAllAtom");
+    const bVal = document.getElementById("btnValenceAtom");
+    // 若按钮当前因“单子层/单轨道”被取消高亮，则保留上一次的选择
+    if(bAll.classList.contains("active")) cloudVisibilityMode = "all";
+    else if(bVal.classList.contains("active")) cloudVisibilityMode = "valence";
+    cloudFocus = null;
+    orbitalFocus = null;
+    clearScene();
+    renderElementCloud3D(atom, q);
+
+    controls.autoRotate = (document.getElementById("autoRotateAtom").value==="on");
+  });
+
+  document.getElementById("cloudQualityAtom").addEventListener("change", ()=>{
+    if(mode!=="atom") return;
+    // 保留当前选择（价层/全部/单轨道）不变，只重采样
+    const atom = parseAtomInput(document.getElementById("atomInput").value);
+    if(!atom) return;
+    clearScene();
+    const q = Number(document.getElementById("cloudQualityAtom").value || "1");
+    renderElementCloud3D(atom, q);
+  });
+
+  document.getElementById("btnValenceAtom").addEventListener("click", ()=>{
+    cloudVisibilityMode = "valence";
+    applyCloudVisibility("valence");
+  });
+  document.getElementById("btnAllAtom").addEventListener("click", ()=>{
+    cloudVisibilityMode = "all";
+    applyCloudVisibility("all");
+  });
+  document.getElementById("autoRotateAtom").addEventListener("change", ()=>{
+    if(mode==="atom") controls.autoRotate = (document.getElementById("autoRotateAtom").value==="on");
+  });
+
+  // 单轨道：family/variant
+  const spdfFamilyEl = document.getElementById("spdfFamily");
+  const spdfVariantEl = document.getElementById("spdfVariant");
+
+  function refreshSpdfVariant(){
+    const fam = spdfFamilyEl.value;
+    const opts = spdfVariantOptions(fam);
+    spdfVariantEl.innerHTML = "";
+    for(const o of opts){
+      const opt = document.createElement("option");
+      opt.value = o.id;
+      opt.textContent = o.label;
+      spdfVariantEl.appendChild(opt);
+    }
+    // 默认值：如果旧值仍存在就保留，否则选第一个
+    const keep = opts.some(o=>o.id===spdfState.variant);
+    spdfVariantEl.value = keep ? spdfState.variant : opts[0].id;
+    spdfState.family = fam;
+    spdfState.variant = spdfVariantEl.value;
+    if(window.refreshControlWidths) window.refreshControlWidths();
+  }
+
+  spdfFamilyEl.addEventListener("change", ()=>{
+    refreshSpdfVariant();
+    if(mode!=="spdf") return;
+    const spec = specFromFamilyVariant(spdfState.family, spdfState.variant);
+    const q = Number(document.getElementById("spdfQuality").value || "25000");
+    renderSPDF(spec, q);
+  });
+  spdfVariantEl.addEventListener("change", ()=>{
+    spdfState.variant = spdfVariantEl.value;
+    if(mode!=="spdf") return;
+    const spec = specFromFamilyVariant(spdfState.family, spdfState.variant);
+    const q = Number(document.getElementById("spdfQuality").value || "25000");
+    renderSPDF(spec, q);
+  });
+
+  document.getElementById("spdfQuality").addEventListener("change", ()=>{
+    if(mode!=="spdf") return;
+    const spec = specFromFamilyVariant(spdfState.family, spdfState.variant);
+    const q = Number(document.getElementById("spdfQuality").value || "25000");
+    renderSPDF(spec, q);
+  });
+  document.getElementById("autoRotateSPDF").addEventListener("change", ()=>{
+    if(mode==="spdf") controls.autoRotate = (document.getElementById("autoRotateSPDF").value==="on");
+  });
+
+  // MO init
+  const molSelect = document.getElementById("molSelect");
+  for(const m of diatomics){
+    const opt = document.createElement("option");
+    opt.value = m.key;
+    opt.textContent = m.key;
+    molSelect.appendChild(opt);
+  }
+  molSelect.value = "O2";
+
+  document.getElementById("btnMO").addEventListener("click", ()=>{
+    showError(null);
+    const molKey = molSelect.value;
+    const r = renderMO2D(molKey);
+    lastMO = {molKey, levels:r.levels, fill:r.res};
+  });
+  document.getElementById("btnMORender").addEventListener("click", ()=>{
+    showError(null);
+    const molKey = molSelect.value;
+    const moName = document.getElementById("mo3dSelect").value || "σ1s";
+    const q = Number(document.getElementById("moQuality").value || "24000");
+    renderMO3D(molKey, moName, q);
+    controls.autoRotate = (document.getElementById("autoRotateMO").value==="on");
+  });
+  document.getElementById("moQuality").addEventListener("change", ()=>{
+    if(mode!=="mo") return;
+    document.getElementById("btnMORender").click();
+  });
+  document.getElementById("autoRotateMO").addEventListener("change", ()=>{
+    if(mode==="mo") controls.autoRotate = (document.getElementById("autoRotateMO").value==="on");
+  });
+
+  // Regen：更聪明一点
+  document.getElementById("btnRegen").addEventListener("click", ()=>{
+    if(mode==="atom"){
+      if(orbitalFocus){
+        // 只重采样当前选中的单轨道
+        applyCloudView();
+      }else{
+        document.getElementById("btnAtom").click();
+      }
+    }else if(mode==="spdf"){
+      const spec = specFromFamilyVariant(spdfState.family, spdfState.variant);
+      const q = Number(document.getElementById("spdfQuality").value || "25000");
+      renderSPDF(spec, q);
+    }else if(mode==="mo"){
+      document.getElementById("btnMORender").click();
+    }
+  });
+
+  // Export PNG
+  function savePNG(){
+    const url = renderer.domElement.toDataURL("image/png");
+    const a = document.createElement("a");
+    const name = document.getElementById("ovTitle").textContent.trim().replace(/\s+/g,"_").slice(0,80) || "visual";
+    a.href = url;
+    a.download = name + ".png";
+    a.click();
+  }
+  document.getElementById("btnSavePNGTop").addEventListener("click", savePNG);
+  document.getElementById("btnSavePNG1").addEventListener("click", savePNG);
+  document.getElementById("btnSavePNG3").addEventListener("click", savePNG);
+  document.getElementById("btnSavePNG4").addEventListener("click", savePNG);
+
+  // Compact toggle
+  const btnToggleHelp = document.getElementById("btnToggleHelp");
+  function syncHelpBtn(){
+    const compact = document.body.classList.contains("compact");
+    btnToggleHelp.textContent = compact ? "显示说明" : "隐藏说明";
+    btnToggleHelp.classList.toggle("active", !compact);
+  }
+  btnToggleHelp.addEventListener("click", ()=>{
+    document.body.classList.toggle("compact");
+    syncHelpBtn();
+  });
+  syncHelpBtn();
+
+  /* --- 控件宽度：默认减半，不够则自动拉伸 --- */
+  function setupControlAutoWidth(){
+    const rootStyle = getComputedStyle(document.documentElement);
+    const base = parseFloat(rootStyle.getPropertyValue('--ctlBase')) || 110;
+    const maxW = parseFloat(rootStyle.getPropertyValue('--ctlMax')) || 280;
+    const ctx = document.createElement('canvas').getContext('2d');
+    function px(v){ const n = parseFloat(v); return Number.isFinite(n) ? n : 0; }
+    function measure(el, text){
+      const cs = getComputedStyle(el);
+      ctx.font = cs.font;
+      const textW = ctx.measureText(text || "").width;
+      const pad = px(cs.paddingLeft) + px(cs.paddingRight);
+      const extra = (el.tagName === "SELECT") ? 36 : 10;
+      return Math.ceil(textW + pad + extra);
+    }
+    function update(el){
+      let t = "";
+      if(el.tagName === "SELECT"){
+        const opt = el.options[el.selectedIndex];
+        t = opt ? opt.text : "";
+      }else if(el.tagName === "INPUT"){
+        if(!el.value){ el.style.width = base + "px"; return; }
+        t = el.value;
+      }else return;
+      const need = Math.min(maxW, Math.max(base, measure(el, t)));
+      el.style.width = need + "px";
+    }
+    const all = Array.from(document.querySelectorAll("#controls input, #controls select"));
+    all.forEach(el=>{
+      update(el);
+      el.addEventListener(el.tagName==="SELECT" ? "change" : "input", ()=>update(el));
+    });
+    window.refreshControlWidths = ()=>{ all.forEach(update); };
+  }
+  setupControlAutoWidth();
+
+  // 默认值
+  document.getElementById("atomInput").value = "O";
+
+  // 初始化 SPDF variant 列表
+  refreshSpdfVariant();
+
+  // 初始化 MO
+  renderMO2D(molSelect.value);
+
+  // 默认进入电子云
+  setMode("atom");
+</script>
+</body>
+</html>
