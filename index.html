@@ -20,10 +20,7 @@
 
     <nav class="nav">
       <a href="#worldtime">世界时间</a>
-      <a href="./map.html">地图</a>
       <a href="./planets.html">行星</a>
-      <a href="./solenoid_ui_interactive_v3.html">线圈磁场1</a>
-      <a href="./solenoid_ui_interactive_v4.html">线圈磁场2</a>
       <a href="./helmholtz_dualcoil_ui_final.html">亥姆霍兹线圈磁场</a>
       <a href="#about">关于</a>
     </nav>
@@ -39,7 +36,7 @@
 
       <div class="actions">
         <a class="btn" href="./planets.html">🚀 打开行星运动</a>
-        <a class="btn" href="./map.html">🗺️ 打开地图</a>
+        <a class="btn" href="./map.html">🗺️ 打开地图高德</a>
         <a class="btn" href="./solenoid_ui_interactive_v3.html">🧲 线圈磁场1 </a>
         <a class="btn" href="./solenoid_ui_interactive_v4.html">🧲 线圈磁场2 </a>
         <a class="btn" href="./helmholtz_dualcoil_ui_final.html">🧲 亥姆霍兹线圈磁场 </a>
@@ -100,12 +97,20 @@
     </section>
 
     <footer class="footer">
-      <p>© <span id="year"></span> • 玩一玩就会了。</p>
-    </footer>
+        <p>
+         © <span id="year"></span> • 玩一玩就会了。
+        <span style="opacity:.75; margin-left:10px;">
+          ｜本页访问次数：<span id="busuanzi_page_pv">加载中...</span>
+        </span>
+     </p>
+     </footer>
+
   </main>
 
   <script src="script.js"></script>
+  <script defer src="https://jsd.onmicrosoft.cn/npm/penndu@17.0.0/bsz.js"></script>
 </body>
 </html>
+
 
 
