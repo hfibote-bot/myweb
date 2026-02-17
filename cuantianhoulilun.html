@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>窜天猴理论｜2D 轨迹（推力方向模式 + 阻力 + 重力 + 定时结束）</title>
+  <style>
+    :root { font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", Arial; }
+    body { margin: 0; background: #0b0e14; color: #e7eefc; }
+    .wrap { display: grid; grid-template-columns: 450px 1fr; gap: 14px; padding: 14px; }
+    .panel { background: #121a2a; border: 1px solid #22304f; border-radius: 12px; padding: 14px; }
+    .panel h2 { margin: 0 0 10px; font-size: 16px; }
+    .row { display: grid; grid-template-columns: 1fr 150px; gap: 10px; align-items: center; margin: 10px 0; }
+    label { font-size: 13px; opacity: 0.95; }
+    input[type="number"], select {
+      width: 100%; background: #0c1322; color: #e7eefc;
+      border: 1px solid #22304f; border-radius: 8px; padding: 6px 8px;
+    }
+    .small { font-size: 12px; opacity: 0.78; line-height: 1.45; }
+    .btns { display: flex; gap: 10px; margin-top: 10px; }
+    button { cursor: pointer; background: #1c2a46; color: #e7eefc; border: 1px solid #2b3d66; border-radius: 10px; padding: 9px 12px; }
+    button:hover { filter: brightness(1.08); }
+    canvas { width: 100%; height: calc(100vh - 28px); background: #070a10; border: 1px solid #22304f; border-radius: 12px; touch-action: none; }
+    .out {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      background: #0c1322; border: 1px solid #22304f; border-radius: 10px; padding: 10px; margin-top: 10px; font-size: 12px;
+      white-space: pre-wrap;
+    }
+    .card {
+      margin-top: 10px; padding: 10px; border-radius: 10px;
+      background: rgba(255,255,255,0.035); border: 1px solid #22304f;
+    }
+    .tag { display:inline-block; padding:2px 8px; border:1px solid #2b3d66; border-radius: 999px; font-size:12px; opacity:0.9; margin-right:6px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <h2>窜天猴理论（玩具模型）</h2>
+
+      <div class="row">
+        <label>发射角 θ0（度）<span class="small">也可在右图拖动起点黄色点调整</span></label>
+        <input id="angle" type="number" min="0" max="89" step="1" value="60">
+      </div>
+
+      <div class="row">
+        <label>推力强度 aThrust（m/s²）<span class="small">燃烧段近似平均 T/m（不是总加速度恒定）</span></label>
+        <input id="aThrust" type="number" min="0" max="400" step="1" value="50">
+      </div>
+
+      <div class="row">
+        <label>燃烧时间 tBurn（s）</label>
+        <input id="tBurn" type="number" min="0" max="8" step="0.05" value="1.0">
+      </div>
+
+      <div class="row">
+        <label>爆炸/结束时刻 tBurst（s）</label>
+        <input id="tBurst" type="number" min="0.1" max="30" step="0.05" value="3.0">
+      </div>
+
+      <div class="row">
+        <label>空气阻力系数 cDrag（1/m）<span class="small">二次阻力：-c|v|v（旋钮近似）</span></label>
+        <input id="cDrag" type="number" min="0" max="0.2" step="0.001" value="0.02">
+      </div>
+
+      <div class="row">
+        <label>初速度 v0（m/s）<span class="small">沿初始发射方向 θ0</span></label>
+        <input id="v0" type="number" min="0" max="80" step="0.5" value="0">
+      </div>
+
+      <div class="row">
+        <label>推力方向模式</label>
+        <select id="dirMode">
+          <option value="followV" selected>主要：逐渐对准速度方向（气动稳定）</option>
+          <option value="fixed">固定为发射角（理想化）</option>
+          <option value="toUp">逐渐抬头到竖直（目标 90°）</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <label>转向时间常数 τ（s）<span class="small">越小越快“对准目标方向”</span></label>
+        <input id="tau" type="number" min="0.01" max="10" step="0.01" value="0.25">
+      </div>
+
+      <div class="row">
+        <label>时间步长 dt（s）</label>
+        <input id="dt" type="number" min="0.0005" max="0.05" step="0.0005" value="0.002">
+      </div>
+
+      <div class="btns">
+        <button id="runBtn">运行 / 刷新轨迹</button>
+        <button id="resetBtn">重置参数</button>
+      </div>
+
+      <div class="out" id="out">输出：—</div>
+
+      <div class="card small">
+        <div style="margin-bottom:8px">
+          模型只用于解释“有推力 + 有阻力 + 定时结束”时的轨迹现象，
+          不用于现实烟花/火箭的设计、改装或远射用途。
+        </div>
+
+        <div style="margin-bottom:6px">
+          <span class="tag">考虑了</span>
+          重力 g=9.81；燃烧段推力（用 aThrust 近似平均 T/m）；二次空气阻力（旋钮系数）；定时结束（tBurst）；
+          数值积分（RK4）；推力方向模式（固定/随速度/抬头）+ 转向滞后 τ。
+        </div>
+        <div style="margin-bottom:6px">
+          <span class="tag">简化点</span>
+          不做质量变化 m(t)；不做推力曲线 T(t)；不建模真实刚体姿态/气动转矩/尾翼稳定细节；
+          不含风场与发射导轨；cDrag 不是从 Cd/A/ρ 精确算来的。
+        </div>
+        <div>
+          <span class="tag">后续</span>
+          引入 T(t) 与 m(t)；加入风与相对风速；引入姿态动力学（角速度+气动稳定）；做多参数对比图（角度扫描曲线/热力图）。
+        </div>
+      </div>
+
+      <div class="small" style="margin-top:10px; opacity:0.75">
+        右侧操作：拖动起点黄色点可调 θ0；终点处黄箭头=推力方向 φ，蓝箭头=速度方向 v。
+      </div>
+    </div>
+
+    <canvas id="cv" width="1200" height="800"></canvas>
+  </div>
+
+<script>
+(() => {
+  const cv = document.getElementById('cv');
+  const ctx = cv.getContext('2d');
+
+  const els = {
+    angle: document.getElementById('angle'),
+    aThrust: document.getElementById('aThrust'),
+    tBurn: document.getElementById('tBurn'),
+    tBurst: document.getElementById('tBurst'),
+    cDrag: document.getElementById('cDrag'),
+    v0: document.getElementById('v0'),
+    dirMode: document.getElementById('dirMode'),
+    tau: document.getElementById('tau'),
+    dt: document.getElementById('dt'),
+    out: document.getElementById('out'),
+    runBtn: document.getElementById('runBtn'),
+    resetBtn: document.getElementById('resetBtn'),
+  };
+
+  const g = 9.81;
+
+  function clamp(x, a, b){ return Math.max(a, Math.min(b, x)); }
+  function wrapPi(a) {
+    while (a > Math.PI) a -= 2*Math.PI;
+    while (a < -Math.PI) a += 2*Math.PI;
+    return a;
+  }
+
+  // RK4
+  function rk4Step(f, t, y, dt) {
+    const k1 = f(t, y);
+    const y2 = y.map((v,i)=> v + dt*k1[i]/2);
+    const k2 = f(t + dt/2, y2);
+    const y3 = y.map((v,i)=> v + dt*k2[i]/2);
+    const k3 = f(t + dt/2, y3);
+    const y4 = y.map((v,i)=> v + dt*k3[i]);
+    const k4 = f(t + dt, y4);
+    return y.map((v,i)=> v + dt*(k1[i] + 2*k2[i] + 2*k3[i] + k4[i]) / 6);
+  }
+
+  // 状态 s = [x, y, vx, vy, phi]
+  // phi 是“推力方向/机头方向”的简化变量
+  function simulate(params) {
+    const theta0 = params.angleDeg * Math.PI / 180;
+    const phi0 = theta0;
+
+    // v0 沿初始发射方向 theta0（你提到的点：这里就是这个设定）
+    let s = [0, 0, params.v0*Math.cos(theta0), params.v0*Math.sin(theta0), phi0];
+    let t = 0;
+
+    const pts = [{t, x:s[0], y:s[1], vx:s[2], vy:s[3], phi:s[4]}];
+
+    const deriv = (tt, ss) => {
+      const [x, y, vx, vy, phi] = ss;
+      const v = Math.hypot(vx, vy);
+
+      // 燃烧段：推力强度 aThrust（近似平均 T/m）
+      const a = (tt < params.tBurn) ? params.aThrust : 0;
+
+      // 目标方向（根据模式）
+      let phiDot = 0;
+      if (params.dirMode === "fixed") {
+        phiDot = 0;
+      } else {
+        const velAng = (v > 1e-6) ? Math.atan2(vy, vx) : phi;
+        const target = (params.dirMode === "followV") ? velAng : (Math.PI/2);
+        const d = wrapPi(target - phi);
+        phiDot = d / params.tau;
+      }
+
+      // 推力沿 phi 方向
+      const axTh = a * Math.cos(phi);
+      const ayTh = a * Math.sin(phi);
+
+      // 二次阻力：-c |v| v
+      const axDrag = -params.cDrag * v * vx;
+      const ayDrag = -params.cDrag * v * vy;
+
+      // 总加速度（注意：净加速度不是常数，会随 v 变化）
+      const ax = axTh + axDrag;
+      const ay = ayTh + ayDrag - g;
+
+      return [vx, vy, ax, ay, phiDot];
+    };
+
+    const n = Math.ceil(params.tBurst / params.dt);
+    for (let i=0; i<n; i++) {
+      s = rk4Step(deriv, t, s, params.dt);
+      t += params.dt;
+      pts.push({t, x:s[0], y:s[1], vx:s[2], vy:s[3], phi:s[4]});
+      if (s[1] < 0) break; // 撞地提前终止
+    }
+    return pts;
+  }
+
+  // 绘图工具
+  let lastDrawState = null;
+
+  function pickNiceGrid(raw) {
+    const p = Math.pow(10, Math.floor(Math.log10(raw)));
+    const x = raw / p;
+    let m = 1;
+    if (x >= 5) m = 5;
+    else if (x >= 2) m = 2;
+    else m = 1;
+    return m * p;
+  }
+
+  function drawGrid(X, Y, minX, maxX, minY, maxY, step) {
+    ctx.save();
+    ctx.strokeStyle = "#1d2a46";
+    ctx.lineWidth = 1;
+
+    const startX = Math.floor(minX/step)*step;
+    for (let x = startX; x <= maxX + 1e-9; x += step) {
+      ctx.beginPath();
+      ctx.moveTo(X(x), Y(minY));
+      ctx.lineTo(X(x), Y(maxY));
+      ctx.stroke();
+    }
+
+    const startY = Math.floor(minY/step)*step;
+    for (let y = startY; y <= maxY + 1e-9; y += step) {
+      ctx.beginPath();
+      ctx.moveTo(X(minX), Y(y));
+      ctx.lineTo(X(maxX), Y(y));
+      ctx.stroke();
+    }
+
+    // labels
+    ctx.fillStyle = "#6f83b3";
+    ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
+    const labelY = (minY <= 0 && maxY >= 0) ? Y(0) + 14 : Y(minY) + 14;
+    for (let x = startX; x <= maxX + 1e-9; x += step*2) {
+      ctx.fillText(`${x.toFixed(0)}`, X(x) + 2, clamp(labelY, 14, cv.height-6));
+    }
+    const labelX = (minX <= 0 && maxX >= 0) ? X(0) + 6 : X(minX) + 6;
+    for (let y = startY; y <= maxY + 1e-9; y += step*2) {
+      ctx.fillText(`${y.toFixed(0)}`, clamp(labelX, 6, cv.width-30), Y(y) - 2);
+    }
+    ctx.restore();
+  }
+
+  function drawArrow(x1,y1,x2,y2,color){
+    const head = 8;
+    const ang = Math.atan2(y2-y1, x2-x1);
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(x1,y1);
+    ctx.lineTo(x2,y2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x2,y2);
+    ctx.lineTo(x2 - head*Math.cos(ang - Math.PI/6), y2 - head*Math.sin(ang - Math.PI/6));
+    ctx.lineTo(x2 - head*Math.cos(ang + Math.PI/6), y2 - head*Math.sin(ang + Math.PI/6));
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawAngleHandle(originPx, originPy, angleDeg) {
+    const theta = angleDeg * Math.PI / 180;
+    const L = 56;
+    const tipX = originPx + L*Math.cos(theta);
+    const tipY = originPy - L*Math.sin(theta);
+
+    drawArrow(originPx, originPy, tipX, tipY, "#ffdc7a");
+
+    ctx.save();
+    ctx.fillStyle = "#ffdc7a";
+    ctx.beginPath();
+    ctx.arc(tipX, tipY, 7, 0, Math.PI*2);
+    ctx.fill();
+
+    ctx.fillStyle = "#a9b8dd";
+    ctx.font = "12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
+    ctx.fillText(`θ0=${angleDeg.toFixed(0)}°（拖动黄色点）`, originPx + 10, originPy - 10);
+    ctx.restore();
+
+    return {tipX, tipY};
+  }
+
+  function draw(pts, params) {
+    ctx.clearRect(0,0,cv.width,cv.height);
+
+    let minX=0, maxX=0, minY=0, maxY=0;
+    for (const p of pts) {
+      minX = Math.min(minX, p.x);
+      maxX = Math.max(maxX, p.x);
+      minY = Math.min(minY, p.y);
+      maxY = Math.max(maxY, p.y);
+    }
+    minY = Math.min(minY, 0);
+    maxY = Math.max(maxY, 1);
+
+    const pad = 60;
+    const w = cv.width - pad*2;
+    const h = cv.height - pad*2;
+
+    const spanX = Math.max(1e-6, maxX - minX);
+    const spanY = Math.max(1e-6, maxY - minY);
+    const scale = Math.min(w / spanX, h / spanY);
+
+    const X = (x) => pad + (x - minX) * scale;
+    const Y = (y) => cv.height - pad - (y - minY) * scale;
+
+    // 网格
+    const gridPhys = pickNiceGrid(Math.max(spanX, spanY) / 10);
+    drawGrid(X, Y, minX, maxX, minY, maxY, gridPhys);
+
+    // 轴线
+    ctx.save();
+    ctx.strokeStyle = "#2b3d66";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(X(minX), Y(0));
+    ctx.lineTo(X(maxX), Y(0));
+    ctx.stroke();
+    if (minX <= 0 && maxX >= 0) {
+      ctx.beginPath();
+      ctx.moveTo(X(0), Y(minY));
+      ctx.lineTo(X(0), Y(maxY));
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // 轨迹
+    ctx.save();
+    ctx.strokeStyle = "#e7eefc";
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    for (let i=0; i<pts.length; i++){
+      const px = X(pts[i].x), py = Y(pts[i].y);
+      if (i===0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+    ctx.restore();
+
+    // 起点角度手柄
+    const ox = X(0), oy = Y(0);
+    const handle = drawAngleHandle(ox, oy, params.angleDeg);
+
+    // 终点标记 + 方向箭头
+    const last = pts[pts.length-1];
+    const px = X(last.x), py = Y(last.y);
+
+    ctx.save();
+    ctx.fillStyle = "#ffdc7a";
+    ctx.beginPath();
+    ctx.arc(px, py, 6, 0, Math.PI*2);
+    ctx.fill();
+
+    // 推力方向（phi）
+    drawArrow(px, py, px + 26*Math.cos(last.phi), py - 26*Math.sin(last.phi), "#ffdc7a");
+
+    // 速度方向（v）
+    const v = Math.hypot(last.vx, last.vy);
+    if (v > 1e-6) {
+      const vxN = last.vx / v, vyN = last.vy / v;
+      drawArrow(px, py, px + 26*vxN, py - 26*vyN, "#8bd6ff");
+    }
+    ctx.restore();
+
+    // 标题角标
+    ctx.save();
+    ctx.fillStyle = "#a9b8dd";
+    ctx.font = "12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
+    ctx.fillText(`窜天猴理论｜黄=φ(推力方向)  蓝=v(速度方向)  g=${g.toFixed(2)}`, 16, 20);
+    ctx.restore();
+
+    lastDrawState = { ox, oy, handle };
+  }
+
+  function readParams() {
+    return {
+      angleDeg: clamp(Number(els.angle.value)||0, 0, 89),
+      aThrust:  clamp(Number(els.aThrust.value)||0, 0, 5000),
+      tBurn:    clamp(Number(els.tBurn.value)||0, 0, 60),
+      tBurst:   clamp(Number(els.tBurst.value)||0.1, 0.01, 120),
+      cDrag:    clamp(Number(els.cDrag.value)||0, 0, 5),
+      v0:       clamp(Number(els.v0.value)||0, 0, 500),
+      dirMode:  els.dirMode.value,
+      tau:      clamp(Number(els.tau.value)||0.25, 0.01, 100),
+      dt:       clamp(Number(els.dt.value)||0.002, 0.0001, 0.2),
+    };
+  }
+
+  function formatOut(pts, params) {
+    const last = pts[pts.length-1];
+    const vEnd = Math.hypot(last.vx, last.vy);
+    const phiDeg = last.phi * 180 / Math.PI;
+    const velDeg = (vEnd>1e-9) ? (Math.atan2(last.vy,last.vx)*180/Math.PI) : NaN;
+
+    // 解释一下“50大不大”的直觉：50≈5.1g
+    const gMultiple = params.aThrust / g;
+
+    return [
+      `t_end = ${last.t.toFixed(3)} s   (目标 tBurst=${params.tBurst.toFixed(3)} s)`,
+      `x_end = ${last.x.toFixed(3)} m`,
+      `y_end = ${last.y.toFixed(3)} m`,
+      `v_end = ${vEnd.toFixed(3)} m/s   (vx=${last.vx.toFixed(3)}, vy=${last.vy.toFixed(3)})`,
+      `phi_end(推力方向) = ${phiDeg.toFixed(2)}°   vel_dir(速度方向) = ${isNaN(velDeg)? "—" : velDeg.toFixed(2)+"°"}`,
+      ``,
+      `模式: ${params.dirMode}   τ=${params.tau}s`,
+      `参数: θ0=${params.angleDeg}°, aThrust=${params.aThrust} m/s² (~${gMultiple.toFixed(2)}g), tBurn=${params.tBurn}s, tBurst=${params.tBurst}s`,
+      `      cDrag=${params.cDrag} 1/m, v0=${params.v0} m/s(沿θ0), dt=${params.dt}s`,
+      `注: aThrust 只是燃烧段“推力强度旋钮”，净加速度会被重力/阻力改变，不是恒定。`
+    ].join("\n");
+  }
+
+  function run() {
+    const params = readParams();
+    const pts = simulate(params);
+    draw(pts, params);
+    els.out.textContent = formatOut(pts, params);
+  }
+
+  function reset() {
+    els.angle.value = 60;
+    els.aThrust.value = 50;
+    els.tBurn.value = 1.0;
+    els.tBurst.value = 3.0;
+    els.cDrag.value = 0.02;
+    els.v0.value = 0;
+    els.dirMode.value = "followV";
+    els.tau.value = 0.25;
+    els.dt.value = 0.002;
+    run();
+  }
+
+  // 输入自动刷新（防抖）
+  let tmr = null;
+  function autoRun() {
+    clearTimeout(tmr);
+    tmr = setTimeout(run, 80);
+  }
+
+  for (const id of ["angle","aThrust","tBurn","tBurst","cDrag","v0","dirMode","tau","dt"]) {
+    els[id].addEventListener('input', autoRun);
+    els[id].addEventListener('change', autoRun);
+  }
+  els.runBtn.addEventListener('click', run);
+  els.resetBtn.addEventListener('click', reset);
+
+  // Canvas 拖动调角度
+  let dragging = false;
+  let rafPending = false;
+
+  function getPointerPos(e) {
+    const r = cv.getBoundingClientRect();
+    return { x: (e.clientX - r.left) * (cv.width / r.width),
+             y: (e.clientY - r.top)  * (cv.height / r.height) };
+  }
+
+  function isOnHandle(p) {
+    if (!lastDrawState || !lastDrawState.handle) return false;
+    const dist = Math.hypot(p.x - lastDrawState.handle.tipX, p.y - lastDrawState.handle.tipY);
+    return dist <= 14;
+  }
+
+  function setAngleFromPointer(p) {
+    if (!lastDrawState) return;
+    const dx = p.x - lastDrawState.ox;
+    const dy = lastDrawState.oy - p.y; // 屏幕y向下，物理y向上
+    let ang = Math.atan2(dy, dx) * 180 / Math.PI;
+    ang = clamp(ang, 0, 89);
+    els.angle.value = Math.round(ang).toString();
+  }
+
+  cv.addEventListener("pointerdown", (e) => {
+    cv.setPointerCapture(e.pointerId);
+    const p = getPointerPos(e);
+    if (isOnHandle(p)) {
+      dragging = true;
+      setAngleFromPointer(p);
+      run();
+    }
+  });
+
+  cv.addEventListener("pointermove", (e) => {
+    if (!dragging) return;
+    const p = getPointerPos(e);
+    setAngleFromPointer(p);
+    if (!rafPending) {
+      rafPending = true;
+      requestAnimationFrame(() => {
+        rafPending = false;
+        run();
+      });
+    }
+  });
+
+  function endDrag(){ dragging = false; }
+  cv.addEventListener("pointerup", endDrag);
+  cv.addEventListener("pointercancel", endDrag);
+  cv.addEventListener("pointerleave", endDrag);
+
+  run();
+})();
+</script>
+</body>
+</html>
