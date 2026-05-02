@@ -18,7 +18,7 @@
       </div>
     </div>
 
-    <nav class="nav">
+    <nav class="nav" aria-label="主导航">
       <a href="#worldtime">世界时间</a>
       <a href="./planets.html">行星</a>
       <a href="./helmholtz_dualcoil_ui_final.html">亥姆霍兹磁场</a>
@@ -39,23 +39,23 @@
         <a class="btn" href="./planets.html">🚀 打开行星运动</a>
         <a class="btn" href="./map.html">🗺️ 打开地图高德</a>
      </div>
-      
+
       <div class="actions">
         <a class="btn" href="./solenoid_ui_interactive_v3.html">🧲 线圈磁场1 </a>
         <a class="btn" href="./solenoid_ui_interactive_v4.html">🧲 线圈磁场2 </a>
         <a class="btn" href="./helmholtz_dualcoil_ui_final.html">🧲 亥姆霍兹线圈磁场 </a>
-     </div>   
-      
+     </div>
+
       <div class="actions">
         <a class="btn" href="./v2.html">☁️电子云结构 </a>
         <a class="btn" href="./unified_visualizer_simplified.html">☁️电子云pro </a>
         <a class="btn" href="./unified_visualizer_full.html">☁️电子云pro max </a>
       </div>
-      
+
       <div class="actions">
         <a class="btn" href="./cuantianhoulilun.html">🧨 窜天猴理论  </a>
       </div>
-      
+
       <div class="actions">
         <button id="copyUrlBtn" class="btn ghost">复制本站地址</button>
       </div>
@@ -69,7 +69,7 @@
         <div class="stat">
           <div class="label">北京时间（Asia/Shanghai）</div>
           <div class="value" data-tz="Asia/Shanghai" id="tz_beijing">加载中…</div>
-          <div class="chips" style="margin-top:10px;">
+          <div class="chips chips-gap-sm">
             <a class="chip" href="./map.html?city=beijing">在地图中查看</a>
           </div>
         </div>
@@ -77,7 +77,7 @@
         <div class="stat">
           <div class="label">伦敦时间（Europe/London）</div>
           <div class="value" data-tz="Europe/London" id="tz_london">加载中…</div>
-          <div class="chips" style="margin-top:10px;">
+          <div class="chips chips-gap-sm">
             <a class="chip" href="./map.html?city=london">在地图中查看</a>
           </div>
         </div>
@@ -85,7 +85,7 @@
         <div class="stat">
           <div class="label">纽约时间（America/New_York）</div>
           <div class="value" data-tz="America/New_York" id="tz_ny">加载中…</div>
-          <div class="chips" style="margin-top:10px;">
+          <div class="chips chips-gap-sm">
             <a class="chip" href="./map.html?city=newyork">在地图中查看</a>
           </div>
         </div>
@@ -93,13 +93,13 @@
         <div class="stat">
           <div class="label">洛杉矶时间（America/Los_Angeles）</div>
           <div class="value" data-tz="America/Los_Angeles" id="tz_la">加载中…</div>
-          <div class="chips" style="margin-top:10px;">
+          <div class="chips chips-gap-sm">
             <a class="chip" href="./map.html?city=la">在地图中查看</a>
           </div>
         </div>
       </div>
 
-      <p class="tip" style="margin-top:12px;">
+      <p class="tip tip-gap-sm">
         想加更多城市：复制一个 stat 块，改 <code>data-tz</code> 和地图链接里的 <code>?city=xxx</code> 就行。
       </p>
     </section>
@@ -107,19 +107,18 @@
     <section id="about" class="card">
       <h2>关于</h2>
       <ul class="list">
-        <li>世界时间：用浏览器的 Intl 时区格式化</li>
-        <li>地图：使用的是高德不用梯子也可以打开</li>
-        <li>行星：交互演示</li>
-        <li>磁场12与亥姆霍兹磁场都只是粗略计算</li>
-        <li>电子云的apieceofshit</li>
-        <li>窜天猴理论布兰德</li>
+        <li>世界时间：使用浏览器的 Intl 时区格式化。</li>
+        <li>地图：使用高德地图，国内网络下可直接访问。</li>
+        <li>行星与磁场：用于概念可视化，属于近似演示。</li>
+        <li>电子云模块：仍在持续优化性能与可视化效果。</li>
+        <li>窜天猴理论：实验性页面，欢迎反馈。</li>
       </ul>
     </section>
 
     <footer class="footer">
         <p>
          © <span id="year"></span> • 玩一玩就会了。
-        <span style="opacity:.75; margin-left:10px;">
+        <span class="footer-pv">
           ｜本页访问次数：<span id="busuanzi_page_pv">加载中...</span>
         </span>
      </p>
@@ -131,12 +130,3 @@
   <script defer src="https://jsd.onmicrosoft.cn/npm/penndu@17.0.0/bsz.js"></script>
 </body>
 </html>
-
-
-
-
-
-
-
-
-

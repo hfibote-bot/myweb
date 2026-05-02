@@ -173,3 +173,16 @@ main.container{ padding: 10px 0 40px; }
   header.container{ flex-direction: column; align-items: flex-start; }
   .grid{ grid-template-columns: 1fr; }
 }
+
+
+.chips-gap-sm{ margin-top:10px; }
+.tip-gap-sm{ margin-top:12px; }
+.footer-pv{ opacity:.75; margin-left:10px; }
+
+.nav a:focus-visible,
+.btn:focus-visible,
+.chip:focus-visible{
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
