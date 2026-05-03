@@ -80,9 +80,9 @@ function calcProject(cfg){
 
 function parseSpecs(raw){
   const specs = JSON.parse(raw);
-  if(!Array.isArray(specs) || !specs.length) throw new Error('规格不能为空');
+  if(!Array.isArray(specs) || !specs.length) throw new Error('请至少填写一行大棚参数');
   specs.forEach((s,i)=>{
-    if(!(s.width>0 && s.length>0 && s.count>0)) throw new Error(`第${i+1}行参数错误`);
+    if(!(s.width>0 && s.length>0 && s.count>0)) throw new Error(`第${i+1}行参数有问题，请检查宽度/长度/数量是否大于0`);
   });
   return specs;
 }
@@ -105,7 +105,7 @@ function build3DSvg(specs){
     layers += `<text x="${x}" y="${y+22}" fill="#fff" font-size="12">组${idx+1}: ${s.width}m×${s.length}m×${s.count}</text>`;
     y -= 86;
   });
-  return `<svg id="projectSvg" viewBox="0 0 1200 620" width="100%" height="380" xmlns="http://www.w3.org/2000/svg"><rect width="1200" height="620" fill="#0b1220"/><text x="20" y="32" fill="#fff" font-size="18">温室三维搭建示意（轴测图）</text>${layers}</svg>`;
+  return `<svg id="projectSvg" viewBox="0 0 1200 620" width="100%" height="380" xmlns="http://www.w3.org/2000/svg"><rect width="1200" height="620" fill="#0b1220"/><text x="20" y="32" fill="#fff" font-size="18">大棚三维示意图（用于沟通）</text>${layers}</svg>`;
 }
 
 function render(){
@@ -121,14 +121,14 @@ function render(){
     lastResult = {cfg, ...r};
 
     const specText = cfg.specs.map(s=>`宽${s.width}米，长${s.length}米，${s.count}个棚`).join('；');
-    document.getElementById('summary').innerHTML = `<h3>项目摘要</h3><p>客户：${cfg.client} ${cfg.phone || ''}</p><p>规格：${specText}</p><p>作物：${cfg.crop==='grape'?'葡萄':cfg.crop==='vegetable'?'蔬菜':'育苗'}；材料等级：${cfg.grade}</p>`;
+    document.getElementById('summary').innerHTML = `<h3>结果摘要</h3><p>客户：${cfg.client} ${cfg.phone || ''}</p><p>规格：${specText}</p><p>作物：${cfg.crop==='grape'?'葡萄':cfg.crop==='vegetable'?'蔬菜':'育苗'}；材料等级：${cfg.grade}</p>`;
 
     const rows = r.rows.map(it=>`<tr><td>${it.name}</td><td>${it.model}</td><td>${it.unit}</td><td>${it.qty.toFixed(1)}</td><td>${money(it.unitPrice)}</td><td>${money(it.amount)}</td><td>${it.note||''}</td></tr>`).join('');
-    document.getElementById('materials').innerHTML = `<h3>大棚清单</h3><table class="table"><thead><tr><th>名称</th><th>规格型号</th><th>单位</th><th>数量</th><th>单价</th><th>金额</th><th>备注</th></tr></thead><tbody>${rows}<tr><td colspan="5">材料小计</td><td>${money(r.subtotal)}</td><td></td></tr><tr><td colspan="5">安装费</td><td>${money(r.install)}</td><td></td></tr><tr><td colspan="5">运输费</td><td>${money(r.transport)}</td><td></td></tr><tr><td colspan="5">税费</td><td>${money(r.tax)}</td><td></td></tr><tr><td colspan="5"><b>合计</b></td><td><b>${money(r.total)}</b></td><td></td></tr></tbody></table>`;
+    document.getElementById('materials').innerHTML = `<h3>材料和报价清单</h3><table class="table"><thead><tr><th>名称</th><th>规格型号</th><th>单位</th><th>数量</th><th>单价</th><th>金额</th><th>备注</th></tr></thead><tbody>${rows}<tr><td colspan="5">材料费用小计</td><td>${money(r.subtotal)}</td><td></td></tr><tr><td colspan="5">施工安装费</td><td>${money(r.install)}</td><td></td></tr><tr><td colspan="5">运输费</td><td>${money(r.transport)}</td><td></td></tr><tr><td colspan="5">税费（估算）</td><td>${money(r.tax)}</td><td></td></tr><tr><td colspan="5"><b>合计</b></td><td><b>${money(r.total)}</b></td><td></td></tr></tbody></table>`;
 
     document.getElementById('drawings').innerHTML = `<h3>工程图</h3><div class="svg-wrap">${build3DSvg(cfg.specs)}</div>`;
   }catch(err){
-    document.getElementById('summary').innerHTML = `<p style="color:#fca5a5">参数错误：${err.message}</p>`;
+    document.getElementById('summary').innerHTML = `<p style="color:#fca5a5">输入有误：${err.message}</p>`;
   }
 }
 

@@ -22,21 +22,21 @@
 <body>
   <main class="container">
     <section class="card">
-      <h2>温室大棚清单计算 + 三维工程图（升级版）</h2>
-      <p class="sub">支持混合规格（如 6m×74.3m ×4棚 + 8m×74.3m ×1棚），并可导出材料清单与工程图。</p>
+      <h2>温室预算助手（简单版）</h2>
+      <p class="sub">你只要填尺寸和数量，就能得到材料清单、总价和工程图，还能一键导出。</p>
       <div class="form-grid">
         <div class="field"><label>客户名称</label><input id="client" value="江老板"></div>
         <div class="field"><label>联系方式</label><input id="phone" value="17355506780"></div>
-        <div class="field"><label>材料等级</label><select id="grade"><option value="std">标准</option><option value="pro" selected>工程加强</option><option value="premium">高配防腐</option></select></div>
-        <div class="field"><label>作物偏好</label><select id="crop"><option value="grape" selected>葡萄</option><option value="vegetable">蔬菜</option><option value="seedling">育苗</option></select></div>
+        <div class="field"><label>材料档次</label><select id="grade"><option value="std">经济型</option><option value="pro" selected>耐用型（推荐）</option><option value="premium">高配型</option></select></div>
+        <div class="field"><label>种植作物</label><select id="crop"><option value="grape" selected>葡萄</option><option value="vegetable">蔬菜</option><option value="seedling">育苗</option></select></div>
       </div>
       <div class="field" style="margin-top:10px">
-        <label>规格清单（JSON 数组）</label>
+        <label>大棚参数（不用懂代码，照抄下面格式改数字）</label>
         <textarea id="specs">[
   {"width":6,"length":74.3,"count":4},
   {"width":8,"length":74.3,"count":1}
 ]</textarea>
-        <div class="hint">每行规格：width(米), length(米), count(棚数)</div>
+        <div class="hint">width=宽度(米)，length=长度(米)，count=数量(个)</div>
       </div>
 
       <div class="actions-row">
