@@ -34,13 +34,10 @@ const coverFactors = {
 };
 
 let lastResult = null;
-let showPrice = false;
 
 function ceilDiv(a, b) { return Math.ceil(a / b); }
-function money(v) { return `¥${v.toFixed(2)}`; }
-function localPrice(base, overrideMap, key) { return Number(overrideMap[key] || base); }
 
-function computeUnitSpec(spec, cfg, overrideMap) {
+function computeUnitSpec(spec, cfg) {
   const len = spec.length;
   const wid = spec.width;
   const cnt = spec.count;
@@ -69,40 +66,35 @@ function computeUnitSpec(spec, cfg, overrideMap) {
   const dripLineM = wid * len * cnt * bays * crop.dripFactor;
 
   const rows = [
-    ['弯钢管', `Ø25*${(wid >= 8 ? 12 : 9.6)}米`, '对', archPairs, localPrice(priceLib.archPair[cfg.grade] * mat.arch, overrideMap, 'archPair'), `${mat.note} ${type === 'linked' ? '联动棚' : '普通棚'}`],
-    ['大梁', 'Ø25*6米', '根', beam6m, localPrice(priceLib.beam6m[cfg.grade] * mat.beam, overrideMap, 'beam6m'), `${beamRows}道`],
-    ['斜拉', 'Ø25*6米', '根', brace6m, localPrice(priceLib.brace6m[cfg.grade], overrideMap, 'brace6m'), '加固'],
-    ['卡子', '25', '个', clips, localPrice(priceLib.clip[cfg.grade], overrideMap, 'clip'), '连接件'],
-    ['棚头立柱', '', '套', frontPostSet, localPrice(priceLib.frontPostSet[cfg.grade], overrideMap, 'frontPostSet'), '棚头'],
-    ['覆盖膜', `${film.label} 宽${filmWidth}米*长${filmLength.toFixed(1)}米`, '平方', poFilmM2, localPrice(priceLib.poFilmM2[cfg.grade] * film.film, overrideMap, 'poFilmM2'), `${cnt}组`],
-    ['卡槽全套', '', '根', slotSet6m, localPrice(priceLib.slotSet6m[cfg.grade], overrideMap, 'slotSet6m'), '压膜'],
-    ['大棚线', '', '卷', greenhouseWireRoll, localPrice(priceLib.greenhouseWireRoll[cfg.grade], overrideMap, 'greenhouseWireRoll'), '稳固'],
-    ['根线', '', '斤', roofWireJin, localPrice(priceLib.roofWireJin[cfg.grade], overrideMap, 'roofWireJin'), '顶部'],
-    ['穿线围裙', '70公分', '件', threadingHoop, localPrice(priceLib.threadingHoop[cfg.grade], overrideMap, 'threadingHoop'), '端头'],
-    ['滴灌管', '16mm', '米', dripLineM, localPrice(priceLib.dripLineM[cfg.grade], overrideMap, 'dripLineM'), `${crop.label}方案`]
-  ].map(([name, model, unit, qty, unitPrice, note]) => ({ name, model, unit, qty: +qty, unitPrice: +unitPrice, amount: +qty * +unitPrice, note }));
+    ['弯钢管', `Ø25*${(wid >= 8 ? 12 : 9.6)}米`, '对', archPairs, `${mat.note} ${type === 'linked' ? '联动棚' : '普通棚'}`],
+    ['大梁', 'Ø25*6米', '根', beam6m, `${beamRows}道`],
+    ['斜拉', 'Ø25*6米', '根', brace6m, '加固'],
+    ['卡子', '25', '个', clips, '连接件'],
+    ['棚头立柱', '', '套', frontPostSet, '棚头'],
+    ['覆盖膜', `${film.label} 宽${filmWidth}米*长${filmLength.toFixed(1)}米`, '平方', poFilmM2, `${cnt}组`],
+    ['卡槽全套', '', '根', slotSet6m, '压膜'],
+    ['大棚线', '', '卷', greenhouseWireRoll, '稳固'],
+    ['根线', '', '斤', roofWireJin, '顶部'],
+    ['穿线围裙', '70公分', '件', threadingHoop, '端头'],
+    ['滴灌管', '16mm', '米', dripLineM, `${crop.label}方案`]
+  ].map(([name, model, unit, qty, note]) => ({ name, model, unit, qty: +qty, note }));
 
   return { rows };
 }
 
-function calcProject(cfg, overrideMap) {
+function calcProject(cfg) {
   const allRows = [];
-  cfg.specs.forEach(sp => allRows.push(...computeUnitSpec(sp, cfg, overrideMap).rows));
+  cfg.specs.forEach(sp => allRows.push(...computeUnitSpec(sp, cfg).rows));
 
   const grouped = new Map();
   for (const r of allRows) {
-    const k = `${r.name}|${r.model}|${r.unit}|${r.unitPrice}|${r.note}`;
+    const k = `${r.name}|${r.model}|${r.unit}|${r.note}`;
     if (!grouped.has(k)) grouped.set(k, { ...r });
-    else {
-      const g = grouped.get(k);
-      g.qty += r.qty;
-      g.amount += r.amount;
-    }
+    else grouped.get(k).qty += r.qty;
   }
 
   const rows = [...grouped.values()].sort((a, b) => a.name.localeCompare(b.name));
-  const subtotal = rows.reduce((s, i) => s + i.amount, 0);
-  return { rows, subtotal };
+  return { rows };
 }
 
 function parseSpecs(raw) {
@@ -115,16 +107,10 @@ function parseSpecs(raw) {
   return specs;
 }
 
-function parsePriceOverrides(raw) {
-  if (!raw.trim()) return {};
-  const map = JSON.parse(raw);
-  if (typeof map !== 'object' || Array.isArray(map)) throw new Error('单价配置必须是 JSON 对象');
-  return map;
-}
-
-function buildInteractiveDrawing(specs) {
+function buildInteractiveDrawing() {
   return `
-    <h3>交互三维工程图（拖动旋转）</h3>
+    <h3>交互图纸（普通棚/联动棚分色）</h3>
+    <p class="hint">紫色=普通棚，蓝色=联动棚；使用滑杆旋转/缩放查看。</p>
     <div class="draw-tools">
       <label>旋转角度 <input id="rotRange" type="range" min="-45" max="45" value="15"></label>
       <label>缩放 <input id="scaleRange" type="range" min="70" max="140" value="100"></label>
@@ -142,8 +128,8 @@ function drawProject(specs, rotDeg, zoomPct) {
   ctx.fillStyle = '#0b1220';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  let baseX = 120;
-  let baseY = 400;
+  const baseX = 120;
+  const baseY = 400;
 
   function proj(x, y, z) {
     const xr = x * Math.cos(rot) - y * Math.sin(rot);
@@ -173,7 +159,6 @@ function drawProject(specs, rotDeg, zoomPct) {
       ctx.beginPath();
       ctx.moveTo(...p1); ctx.lineTo(...p2); ctx.lineTo(...p3); ctx.lineTo(...p4); ctx.closePath();
       ctx.stroke();
-
       ctx.beginPath();
       ctx.moveTo(...p1); ctx.lineTo(...top); ctx.lineTo(...p2);
       ctx.moveTo(...p4); ctx.lineTo(...top); ctx.lineTo(...p3);
@@ -195,23 +180,17 @@ function render() {
       coverType: document.getElementById('coverType').value,
       specs: parseSpecs(document.getElementById('specs').value)
     };
-    const overrideMap = parsePriceOverrides(document.getElementById('priceConfig').value);
-    const r = calcProject(cfg, overrideMap);
+    const r = calcProject(cfg);
     lastResult = { cfg, ...r };
 
     const specText = cfg.specs.map(s => `${s.type === 'linked' ? '联动棚' : '普通棚'} 宽${s.width}米，长${s.length}米，${s.count}组${s.type === 'linked' ? `，${s.bays || 2}跨` : ''}`).join('；');
     const cropLabel = cropProfiles[cfg.crop]?.label || cfg.crop;
-    document.getElementById('summary').innerHTML = `<h3>结果摘要</h3><p>规格：${specText}</p><p>作物：${cropLabel}；材料档次：${cfg.grade}；管材：${materialFactors[cfg.pipeType].note}；覆盖膜：${coverFactors[cfg.coverType].label}</p><p>隐私说明：不再记录客户姓名和电话。</p>`;
+    document.getElementById('summary').innerHTML = `<h3>结果摘要</h3><p>规格：${specText}</p><p>作物：${cropLabel}；材料档次：${cfg.grade}；管材：${materialFactors[cfg.pipeType].note}；覆盖膜：${coverFactors[cfg.coverType].label}</p><p>隐私说明：不记录客户姓名和电话，不展示价格与金额。</p>`;
 
-    const rows = r.rows.map(it => {
-      if (showPrice) return `<tr><td>${it.name}</td><td>${it.model}</td><td>${it.unit}</td><td>${it.qty.toFixed(1)}</td><td>${money(it.unitPrice)}</td><td>${money(it.amount)}</td><td>${it.note || ''}</td></tr>`;
-      return `<tr><td>${it.name}</td><td>${it.model}</td><td>${it.unit}</td><td>${it.qty.toFixed(1)}</td><td>隐藏</td><td>隐藏</td><td>${it.note || ''}</td></tr>`;
-    }).join('');
+    const rows = r.rows.map(it => `<tr><td>${it.name}</td><td>${it.model}</td><td>${it.unit}</td><td>${it.qty.toFixed(1)}</td><td>${it.note || ''}</td></tr>`).join('');
+    document.getElementById('materials').innerHTML = `<h3>材料清单（不含价格）</h3><table class="table"><thead><tr><th>名称</th><th>规格型号</th><th>单位</th><th>数量</th><th>备注</th></tr></thead><tbody>${rows}</tbody></table>`;
 
-    const footer = showPrice ? `<tr><td colspan="5"><b>合计</b></td><td><b>${money(r.subtotal)}</b></td><td></td></tr>` : '';
-    document.getElementById('materials').innerHTML = `<h3>材料清单${showPrice ? '和报价' : '（价格已隐藏）'}</h3><table class="table"><thead><tr><th>名称</th><th>规格型号</th><th>单位</th><th>数量</th><th>单价</th><th>金额</th><th>备注</th></tr></thead><tbody>${rows}${footer}</tbody></table>`;
-
-    document.getElementById('drawings').innerHTML = buildInteractiveDrawing(cfg.specs);
+    document.getElementById('drawings').innerHTML = buildInteractiveDrawing();
     const rot = document.getElementById('rotRange');
     const scale = document.getElementById('scaleRange');
     const redraw = () => drawProject(cfg.specs, Number(rot.value), Number(scale.value));
@@ -248,7 +227,6 @@ function exportPNG() {
 }
 
 document.getElementById('runBtn').addEventListener('click', render);
-document.getElementById('togglePriceBtn').addEventListener('click', () => { showPrice = !showPrice; render(); });
 document.getElementById('exportCsvBtn').addEventListener('click', exportCSV);
 document.getElementById('exportSvgBtn').addEventListener('click', exportSVG);
 document.getElementById('exportPngBtn').addEventListener('click', exportPNG);
