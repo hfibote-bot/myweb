@@ -6,30 +6,45 @@
   <title>温室大棚计算与工程图</title>
   <link rel="stylesheet" href="style.css" />
   <style>
-    .form-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+    .form-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
     .field label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
-    .field input,.field select{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--text)}
+    .field input,.field select,.field textarea{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--text)}
+    .field textarea{min-height:96px;font-family:ui-monospace,Consolas,monospace}
     .table{width:100%;border-collapse:collapse;margin-top:12px}
     .table th,.table td{border-bottom:1px solid var(--line);padding:8px;font-size:13px;text-align:left}
     .out{margin-top:16px}
     .svg-wrap{background:rgba(0,0,0,.15);border:1px solid var(--line);border-radius:12px;padding:8px;margin-top:10px}
-    @media (max-width: 860px){.form-grid{grid-template-columns:1fr}}
+    .actions-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+    .hint{font-size:12px;color:var(--muted)}
+    @media (max-width: 980px){.form-grid{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
   <main class="container">
     <section class="card">
-      <h2>温室大棚计算与报价（演示版）</h2>
-      <p class="sub">说明：这是先行演示模型，使用公开工程经验参数，不包含你们内部算法。</p>
+      <h2>温室预算助手（简单版）</h2>
+      <p class="sub">你只要填尺寸和数量，就能得到材料清单、总价和工程图，还能一键导出。</p>
       <div class="form-grid">
-        <div class="field"><label>棚数量</label><input id="count" type="number" min="1" value="5"></div>
-        <div class="field"><label>单棚宽度（m）</label><input id="width" type="number" min="2" step="0.1" value="5"></div>
-        <div class="field"><label>单棚长度（m）</label><input id="length" type="number" min="5" step="0.1" value="50"></div>
-        <div class="field"><label>棚型</label><select id="type"><option value="normal">普通单体棚</option><option value="linked">联动大棚</option><option value="wide">加宽椭圆管棚</option></select></div>
-        <div class="field"><label>材料等级</label><select id="grade"><option value="std">标准</option><option value="pro">加强</option><option value="premium">高配防腐</option></select></div>
-        <div class="field"><label>作物偏好</label><select id="crop"><option value="grape">葡萄</option><option value="vegetable">蔬菜</option><option value="seedling">育苗</option></select></div>
+        <div class="field"><label>客户名称</label><input id="client" value="江老板"></div>
+        <div class="field"><label>联系方式</label><input id="phone" value="17355506780"></div>
+        <div class="field"><label>材料档次</label><select id="grade"><option value="std">经济型</option><option value="pro" selected>耐用型（推荐）</option><option value="premium">高配型</option></select></div>
+        <div class="field"><label>种植作物</label><select id="crop"><option value="grape" selected>葡萄</option><option value="vegetable">蔬菜</option><option value="seedling">育苗</option></select></div>
       </div>
-      <div class="actions"><button class="btn" id="runBtn">生成计算与图纸</button></div>
+      <div class="field" style="margin-top:10px">
+        <label>大棚参数（不用懂代码，照抄下面格式改数字）</label>
+        <textarea id="specs">[
+  {"width":6,"length":74.3,"count":4},
+  {"width":8,"length":74.3,"count":1}
+]</textarea>
+        <div class="hint">width=宽度(米)，length=长度(米)，count=数量(个)</div>
+      </div>
+
+      <div class="actions-row">
+        <button class="btn" id="runBtn">生成清单与图纸</button>
+        <button class="btn ghost" id="exportCsvBtn">导出材料清单 CSV</button>
+        <button class="btn ghost" id="exportSvgBtn">导出工程图 SVG</button>
+        <button class="btn ghost" id="exportPngBtn">导出工程图 PNG</button>
+      </div>
 
       <div class="out" id="summary"></div>
       <div class="out" id="materials"></div>

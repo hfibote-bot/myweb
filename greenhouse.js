@@ -1,111 +1,172 @@
 const priceLib = {
-  tubeKg: { std: 5.8, pro: 6.6, premium: 7.5 },
-  filmM2: { std: 8, pro: 11, premium: 16 },
-  insectM2: { std: 3.5, pro: 4.2, premium: 5.8 },
-  wireM: { std: 1.2, pro: 1.5, premium: 1.9 },
-  clampSet: { std: 2.8, pro: 3.5, premium: 4.6 },
-  dripM: { std: 1.8, pro: 2.2, premium: 3.0 },
-  anchorEach: { std: 12, pro: 15, premium: 20 }
+  archPair: { std: 35, pro: 40, premium: 48 },
+  beam6m: { std: 20, pro: 24, premium: 30 },
+  brace6m: { std: 20, pro: 23, premium: 28 },
+  clip: { std: 0.5, pro: 0.7, premium: 1.0 },
+  frontPostSet: { std: 120, pro: 145, premium: 170 },
+  poFilmM2: { std: 1, pro: 1.3, premium: 1.8 },
+  slotSet6m: { std: 15, pro: 18, premium: 22 },
+  greenhouseWireRoll: { std: 70, pro: 80, premium: 95 },
+  roofWireJin: { std: 10, pro: 12, premium: 15 },
+  threadingHoop: { std: 110, pro: 130, premium: 160 },
 };
 
-function factors(type){
-  if(type==='linked') return {archSpacing:1.2, tubeKgPerM:8.8, filmFactor:1.25};
-  if(type==='wide') return {archSpacing:1.0, tubeKgPerM:10.2, filmFactor:1.4};
-  return {archSpacing:1.1, tubeKgPerM:7.2, filmFactor:1.2};
+let lastResult = null;
+
+function ceilDiv(a,b){ return Math.ceil(a/b); }
+function money(v){ return `¥${v.toFixed(2)}`; }
+
+function computeUnitSpec(spec, grade, crop){
+  const len = spec.length;
+  const wid = spec.width;
+  const cnt = spec.count;
+
+  const archSpacing = wid >= 8 ? 0.98 : 0.93;
+  const archPairs = (ceilDiv(len, archSpacing) + 1) * cnt;
+  const beamRows = wid >= 8 ? 3 : 1;
+  const beam6m = ceilDiv(len / 6, 1) * beamRows * cnt;
+  const brace6m = Math.max(4, Math.round((len / 18) * (wid >= 8 ? 1 : 0.9))) * cnt;
+  const clips = archPairs * (wid >= 8 ? 3.7 : 1.4);
+  const frontPostSet = cnt;
+  const filmWidth = wid + 3;
+  const filmLength = len + 8.7;
+  const poFilmM2 = filmWidth * filmLength * cnt;
+  const slotSet6m = ceilDiv(len / 6, 1) * 2 * cnt;
+  const greenhouseWireRoll = Math.max(3, Math.round(len / 25)) * (wid >= 8 ? 2 : 1) * cnt;
+  const roofWireJin = Math.max(8, Math.round(len / 18)) * (wid >= 8 ? 2 : 1) * cnt;
+  const threadingHoop = cnt;
+  const dripLineM = wid * len * cnt * (crop === 'grape' ? 0.22 : 0.15);
+
+  const rows = [
+    ['弯钢管', `Ø25*${(wid>=8?12:9.6)}米`, '对', archPairs, priceLib.archPair[grade], `宽${wid}米`],
+    ['大梁', 'Ø25*6米', '根', beam6m, priceLib.beam6m[grade], `${beamRows}道`],
+    ['斜拉', 'Ø25*6米', '根', brace6m, priceLib.brace6m[grade], '加固'],
+    ['卡子', '25', '个', clips, priceLib.clip[grade], '连接件'],
+    ['棚头立柱', '', '套', frontPostSet, priceLib.frontPostSet[grade], '棚头'],
+    ['PO膜', `宽${filmWidth}米*长${filmLength.toFixed(1)}米`, '平方', poFilmM2, priceLib.poFilmM2[grade], `${cnt}件`],
+    ['卡槽全套', '', '根', slotSet6m, priceLib.slotSet6m[grade], '压膜'],
+    ['大棚线', '', '卷', greenhouseWireRoll, priceLib.greenhouseWireRoll[grade], '稳固'],
+    ['根线', '', '斤', roofWireJin, priceLib.roofWireJin[grade], '顶部'],
+    ['穿线围裙', '70公分', '件', threadingHoop, priceLib.threadingHoop[grade], '端头'],
+    ['滴灌管', '16mm', '米', dripLineM, (grade==='premium'?3:2.2), crop==='grape'?'葡萄双线':'常规'],
+  ].map(([name, model, unit, qty, unitPrice, note]) => ({name, model, unit, qty:+qty, unitPrice:+unitPrice, amount:+qty*+unitPrice, note}));
+
+  return {rows, wid, len, cnt};
 }
 
-function calc(cfg){
-  const f = factors(cfg.type);
-  const areaSingle = cfg.width * cfg.length;
-  const totalArea = areaSingle * cfg.count;
-  const archesPerHouse = Math.ceil(cfg.length / f.archSpacing) + 1;
-  const perimeterEq = 2 * cfg.length + 2 * cfg.width;
-  const tubeKg = cfg.count * (cfg.length * f.tubeKgPerM + archesPerHouse * cfg.width * 2.4);
-  const filmM2 = totalArea * f.filmFactor;
-  const insectM2 = totalArea * 0.23;
-  const wireM = cfg.count * perimeterEq * 2.2;
-  const clampSet = cfg.count * archesPerHouse * 14;
-  const dripM = totalArea * (cfg.crop==='grape' ? 1.8 : 1.2);
-  const anchorEach = cfg.count * archesPerHouse;
+function calcProject(cfg){
+  const allRows = [];
+  cfg.specs.forEach(sp => allRows.push(...computeUnitSpec(sp, cfg.grade, cfg.crop).rows));
 
-  const items = [
-    ['椭圆钢管（kg）', tubeKg, priceLib.tubeKg[cfg.grade]],
-    ['棚膜（m²）', filmM2, priceLib.filmM2[cfg.grade]],
-    ['防虫网（m²）', insectM2, priceLib.insectM2[cfg.grade]],
-    ['压膜线（m）', wireM, priceLib.wireM[cfg.grade]],
-    ['卡槽卡簧（套）', clampSet, priceLib.clampSet[cfg.grade]],
-    ['滴灌管（m）', dripM, priceLib.dripM[cfg.grade]],
-    ['地锚（个）', anchorEach, priceLib.anchorEach[cfg.grade]],
-  ].map(([name, qty, unit]) => ({name, qty, unit, subtotal: qty*unit}));
-
-  const install = items.reduce((s,i)=>s+i.subtotal,0) * 0.16;
-  const transport = items.reduce((s,i)=>s+i.subtotal,0) * 0.05;
-  const total = items.reduce((s,i)=>s+i.subtotal,0) + install + transport;
-
-  return {areaSingle,totalArea,archesPerHouse,items,install,transport,total};
-}
-
-function money(v){return `¥${v.toFixed(2)}`}
-
-function render(){
-  const cfg = {
-    count:+document.getElementById('count').value,
-    width:+document.getElementById('width').value,
-    length:+document.getElementById('length').value,
-    type:document.getElementById('type').value,
-    grade:document.getElementById('grade').value,
-    crop:document.getElementById('crop').value,
-  };
-  const r = calc(cfg);
-
-  document.getElementById('summary').innerHTML = `
-    <h3>计算摘要</h3>
-    <p>方案：${cfg.count} 个，单棚 ${cfg.width}m × ${cfg.length}m，总面积 ${r.totalArea.toFixed(1)} m²；每棚约 ${r.archesPerHouse} 榀拱架。</p>
-    <p>针对葡萄建议：优先高透光 PO 膜 + 肩高通风 + 双路滴灌，增强夏季降温与病害控制。</p>
-  `;
-
-  const rows = r.items.map(i=>`<tr><td>${i.name}</td><td>${i.qty.toFixed(1)}</td><td>${money(i.unit)}</td><td>${money(i.subtotal)}</td></tr>`).join('');
-  document.getElementById('materials').innerHTML = `
-    <h3>材料清单与报价（估算）</h3>
-    <table class="table"><thead><tr><th>材料</th><th>数量</th><th>单价</th><th>小计</th></tr></thead>
-    <tbody>${rows}
-    <tr><td>安装费</td><td>-</td><td>-</td><td>${money(r.install)}</td></tr>
-    <tr><td>运输费</td><td>-</td><td>-</td><td>${money(r.transport)}</td></tr>
-    <tr><td><b>合计</b></td><td>-</td><td>-</td><td><b>${money(r.total)}</b></td></tr>
-    </tbody></table>
-    <p class="sub">注意：报价为演示估算，会随钢价、膜材品牌、地区施工费浮动。</p>
-  `;
-
-  const widthPx = 500, lengthPx = 900;
-  const bays = Math.min(cfg.count, 8);
-  let top = '';
-  for(let i=0;i<bays;i++){
-    top += `<rect x="${40+i*100}" y="60" width="80" height="300" fill="none" stroke="#7dd3fc"/><text x="${80+i*100}" y="380" fill="#fff" font-size="12" text-anchor="middle">#${i+1}</text>`;
+  const grouped = new Map();
+  for(const r of allRows){
+    const k = `${r.name}|${r.model}|${r.unit}|${r.unitPrice}|${r.note}`;
+    if(!grouped.has(k)) grouped.set(k, {...r});
+    else {
+      const g = grouped.get(k);
+      g.qty += r.qty;
+      g.amount += r.amount;
+    }
   }
 
-  document.getElementById('drawings').innerHTML = `
-    <h3>工程示意图（实体+搭建）</h3>
-    <div class="svg-wrap">
-      <svg viewBox="0 0 ${lengthPx} ${widthPx}" width="100%" height="260" aria-label="平面布置图">
-        <text x="20" y="30" fill="#fff" font-size="14">平面布置（最多显示8个棚位）</text>
-        ${top}
-        <line x1="40" y1="420" x2="840" y2="420" stroke="#fff"/>
-        <text x="430" y="445" fill="#fff" font-size="12">总长方向</text>
-      </svg>
-    </div>
-    <div class="svg-wrap">
-      <svg viewBox="0 0 700 360" width="100%" height="260" aria-label="剖面搭建图">
-        <text x="20" y="28" fill="#fff" font-size="14">单棚剖面（椭圆管拱架示意）</text>
-        <path d="M100 300 Q350 70 600 300" stroke="#a78bfa" fill="none" stroke-width="4"/>
-        <line x1="100" y1="300" x2="600" y2="300" stroke="#fff"/>
-        <line x1="170" y1="300" x2="170" y2="210" stroke="#7dd3fc"/>
-        <line x1="530" y1="300" x2="530" y2="210" stroke="#7dd3fc"/>
-        <text x="285" y="335" fill="#fff" font-size="12">宽 ${cfg.width}m（比例示意）</text>
-        <text x="290" y="120" fill="#fff" font-size="12">顶高约 ${(cfg.width*0.52).toFixed(1)}m</text>
-      </svg>
-    </div>
-  `;
+  const rows = [...grouped.values()].sort((a,b)=>a.name.localeCompare(b.name));
+  const subtotal = rows.reduce((s,i)=>s+i.amount,0);
+  const install = subtotal * 0.12;
+  const transport = subtotal * 0.04;
+  const tax = subtotal * 0.03;
+  const total = subtotal + install + transport + tax;
+  return {rows, subtotal, install, transport, tax, total};
+}
+
+function parseSpecs(raw){
+  const specs = JSON.parse(raw);
+  if(!Array.isArray(specs) || !specs.length) throw new Error('请至少填写一行大棚参数');
+  specs.forEach((s,i)=>{
+    if(!(s.width>0 && s.length>0 && s.count>0)) throw new Error(`第${i+1}行参数有问题，请检查宽度/长度/数量是否大于0`);
+  });
+  return specs;
+}
+
+function build3DSvg(specs){
+  let x = 40, y = 300;
+  let layers = '';
+  specs.forEach((s,idx)=>{
+    const w = 55 + s.width * 7;
+    const l = 160 + s.length * 1.8;
+    const h = 38 + s.width * 4;
+    for(let c=0;c<s.count;c++){
+      const ox = x + c*24;
+      const oy = y - c*12;
+      layers += `<polygon points="${ox},${oy} ${ox+l},${oy} ${ox+l-40},${oy-h} ${ox-40},${oy-h}" fill="rgba(125,211,252,.24)" stroke="#7dd3fc"/>`;
+      layers += `<path d="M${ox-40} ${oy-h} Q${ox+w/2} ${oy-h-56} ${ox+w+20} ${oy-h}" stroke="#a78bfa" fill="none" stroke-width="2"/>`;
+      layers += `<line x1="${ox}" y1="${oy}" x2="${ox-40}" y2="${oy-h}" stroke="#9ca3af"/>`;
+      layers += `<line x1="${ox+l}" y1="${oy}" x2="${ox+l-40}" y2="${oy-h}" stroke="#9ca3af"/>`;
+    }
+    layers += `<text x="${x}" y="${y+22}" fill="#fff" font-size="12">组${idx+1}: ${s.width}m×${s.length}m×${s.count}</text>`;
+    y -= 86;
+  });
+  return `<svg id="projectSvg" viewBox="0 0 1200 620" width="100%" height="380" xmlns="http://www.w3.org/2000/svg"><rect width="1200" height="620" fill="#0b1220"/><text x="20" y="32" fill="#fff" font-size="18">大棚三维示意图（用于沟通）</text>${layers}</svg>`;
+}
+
+function render(){
+  try{
+    const cfg = {
+      client: document.getElementById('client').value.trim(),
+      phone: document.getElementById('phone').value.trim(),
+      grade: document.getElementById('grade').value,
+      crop: document.getElementById('crop').value,
+      specs: parseSpecs(document.getElementById('specs').value)
+    };
+    const r = calcProject(cfg);
+    lastResult = {cfg, ...r};
+
+    const specText = cfg.specs.map(s=>`宽${s.width}米，长${s.length}米，${s.count}个棚`).join('；');
+    document.getElementById('summary').innerHTML = `<h3>结果摘要</h3><p>客户：${cfg.client} ${cfg.phone || ''}</p><p>规格：${specText}</p><p>作物：${cfg.crop==='grape'?'葡萄':cfg.crop==='vegetable'?'蔬菜':'育苗'}；材料等级：${cfg.grade}</p>`;
+
+    const rows = r.rows.map(it=>`<tr><td>${it.name}</td><td>${it.model}</td><td>${it.unit}</td><td>${it.qty.toFixed(1)}</td><td>${money(it.unitPrice)}</td><td>${money(it.amount)}</td><td>${it.note||''}</td></tr>`).join('');
+    document.getElementById('materials').innerHTML = `<h3>材料和报价清单</h3><table class="table"><thead><tr><th>名称</th><th>规格型号</th><th>单位</th><th>数量</th><th>单价</th><th>金额</th><th>备注</th></tr></thead><tbody>${rows}<tr><td colspan="5">材料费用小计</td><td>${money(r.subtotal)}</td><td></td></tr><tr><td colspan="5">施工安装费</td><td>${money(r.install)}</td><td></td></tr><tr><td colspan="5">运输费</td><td>${money(r.transport)}</td><td></td></tr><tr><td colspan="5">税费（估算）</td><td>${money(r.tax)}</td><td></td></tr><tr><td colspan="5"><b>合计</b></td><td><b>${money(r.total)}</b></td><td></td></tr></tbody></table>`;
+
+    document.getElementById('drawings').innerHTML = `<h3>工程图</h3><div class="svg-wrap">${build3DSvg(cfg.specs)}</div>`;
+  }catch(err){
+    document.getElementById('summary').innerHTML = `<p style="color:#fca5a5">输入有误：${err.message}</p>`;
+  }
+}
+
+function exportCSV(){
+  if(!lastResult) return;
+  const header = ['名称','规格型号','单位','数量','单价','金额','备注'];
+  const lines = [header.join(',')];
+  lastResult.rows.forEach(r=>lines.push([r.name,r.model,r.unit,r.qty.toFixed(1),r.unitPrice.toFixed(2),r.amount.toFixed(2),r.note||''].map(v=>`"${String(v).replaceAll('"','""')}"`).join(',')));
+  lines.push(`"合计",,,,,"${lastResult.total.toFixed(2)}",`);
+  const blob = new Blob([lines.join('\n')],{type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'greenhouse_bom.csv'; a.click();
+}
+
+function exportSVG(){
+  const svg = document.getElementById('projectSvg');
+  if(!svg) return;
+  const blob = new Blob([svg.outerHTML],{type:'image/svg+xml;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'greenhouse_drawing.svg'; a.click();
+}
+
+function exportPNG(){
+  const svg = document.getElementById('projectSvg');
+  if(!svg) return;
+  const data = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg.outerHTML);
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 1600; canvas.height = 900;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#0b1220'; ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.drawImage(img,0,0,canvas.width,canvas.height);
+    const a = document.createElement('a'); a.href = canvas.toDataURL('image/png'); a.download = 'greenhouse_drawing.png'; a.click();
+  };
+  img.src = data;
 }
 
 document.getElementById('runBtn').addEventListener('click', render);
+document.getElementById('exportCsvBtn').addEventListener('click', exportCSV);
+document.getElementById('exportSvgBtn').addEventListener('click', exportSVG);
+document.getElementById('exportPngBtn').addEventListener('click', exportPNG);
 render();
