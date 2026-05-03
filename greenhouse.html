@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>温室大棚计算与工程图</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .form-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+    .field label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+    .field input,.field select{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--text)}
+    .table{width:100%;border-collapse:collapse;margin-top:12px}
+    .table th,.table td{border-bottom:1px solid var(--line);padding:8px;font-size:13px;text-align:left}
+    .out{margin-top:16px}
+    .svg-wrap{background:rgba(0,0,0,.15);border:1px solid var(--line);border-radius:12px;padding:8px;margin-top:10px}
+    @media (max-width: 860px){.form-grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <main class="container">
+    <section class="card">
+      <h2>温室大棚计算与报价（演示版）</h2>
+      <p class="sub">说明：这是先行演示模型，使用公开工程经验参数，不包含你们内部算法。</p>
+      <div class="form-grid">
+        <div class="field"><label>棚数量</label><input id="count" type="number" min="1" value="5"></div>
+        <div class="field"><label>单棚宽度（m）</label><input id="width" type="number" min="2" step="0.1" value="5"></div>
+        <div class="field"><label>单棚长度（m）</label><input id="length" type="number" min="5" step="0.1" value="50"></div>
+        <div class="field"><label>棚型</label><select id="type"><option value="normal">普通单体棚</option><option value="linked">联动大棚</option><option value="wide">加宽椭圆管棚</option></select></div>
+        <div class="field"><label>材料等级</label><select id="grade"><option value="std">标准</option><option value="pro">加强</option><option value="premium">高配防腐</option></select></div>
+        <div class="field"><label>作物偏好</label><select id="crop"><option value="grape">葡萄</option><option value="vegetable">蔬菜</option><option value="seedling">育苗</option></select></div>
+      </div>
+      <div class="actions"><button class="btn" id="runBtn">生成计算与图纸</button></div>
+
+      <div class="out" id="summary"></div>
+      <div class="out" id="materials"></div>
+      <div class="out" id="drawings"></div>
+    </section>
+  </main>
+  <script src="greenhouse.js"></script>
+</body>
+</html>
