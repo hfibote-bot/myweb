@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>温室大棚计算与工程图</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    .form-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+    .field label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+    .field input,.field select,.field textarea{width:100%;padding:10px;border-radius:10px;border:1px solid var(--line);background:rgba(255,255,255,.04);color:var(--text)}
+    .field textarea{min-height:96px;font-family:ui-monospace,Consolas,monospace}
+    .table{width:100%;border-collapse:collapse;margin-top:12px}
+    .table th,.table td{border-bottom:1px solid var(--line);padding:8px;font-size:13px;text-align:left}
+    .out{margin-top:16px}
+    .svg-wrap{background:rgba(0,0,0,.15);border:1px solid var(--line);border-radius:12px;padding:8px;margin-top:10px}
+    .actions-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+    .hint{font-size:12px;color:var(--muted)}
+    @media (max-width: 980px){.form-grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <main class="container">
+    <section class="card">
+      <h2>温室大棚清单计算 + 三维工程图（升级版）</h2>
+      <p class="sub">支持混合规格（如 6m×74.3m ×4棚 + 8m×74.3m ×1棚），并可导出材料清单与工程图。</p>
+      <div class="form-grid">
+        <div class="field"><label>客户名称</label><input id="client" value="江老板"></div>
+        <div class="field"><label>联系方式</label><input id="phone" value="17355506780"></div>
+        <div class="field"><label>材料等级</label><select id="grade"><option value="std">标准</option><option value="pro" selected>工程加强</option><option value="premium">高配防腐</option></select></div>
+        <div class="field"><label>作物偏好</label><select id="crop"><option value="grape" selected>葡萄</option><option value="vegetable">蔬菜</option><option value="seedling">育苗</option></select></div>
+      </div>
+      <div class="field" style="margin-top:10px">
+        <label>规格清单（JSON 数组）</label>
+        <textarea id="specs">[
+  {"width":6,"length":74.3,"count":4},
+  {"width":8,"length":74.3,"count":1}
+]</textarea>
+        <div class="hint">每行规格：width(米), length(米), count(棚数)</div>
+      </div>
+
+      <div class="actions-row">
+        <button class="btn" id="runBtn">生成清单与图纸</button>
+        <button class="btn ghost" id="exportCsvBtn">导出材料清单 CSV</button>
+        <button class="btn ghost" id="exportSvgBtn">导出工程图 SVG</button>
+        <button class="btn ghost" id="exportPngBtn">导出工程图 PNG</button>
+      </div>
+
+      <div class="out" id="summary"></div>
+      <div class="out" id="materials"></div>
+      <div class="out" id="drawings"></div>
+    </section>
+  </main>
+  <script src="greenhouse.js"></script>
+</body>
+</html>
