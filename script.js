@@ -59,24 +59,21 @@ function weatherKindFromCode(code){
   return "clear";
 }
 
-async function initLiveWeatherBackground(){
-  if (!navigator.geolocation) {
-    setWeatherStatus("天气动态背景：浏览器不支持定位，使用默认天空。");
-    return;
-  }
+const WEATHER_LOCATIONS = {
+  donetsk: { label: "顿涅茨克", latitude: 48.0159, longitude: 37.8029 },
+  luhansk: { label: "卢甘斯克", latitude: 48.5740, longitude: 39.3078 },
+  beijing: { label: "北京", latitude: 39.9042, longitude: 116.4074 },
+  shanghai: { label: "上海", latitude: 31.2304, longitude: 121.4737 },
+  newyork: { label: "纽约", latitude: 40.7128, longitude: -74.0060 },
+  tokyo: { label: "东京", latitude: 35.6762, longitude: 139.6503 }
+};
 
-  const getPos = () => new Promise((resolve, reject) => {
-    navigator.geolocation.getCurrentPosition(resolve, reject, {
-      enableHighAccuracy: false,
-      timeout: 8000,
-      maximumAge: 10 * 60 * 1000
-    });
-  });
+async function applyWeatherByPreset(key){
+  const city = WEATHER_LOCATIONS[key] || WEATHER_LOCATIONS.donetsk;
+  const lat = city.latitude.toFixed(4);
+  const lon = city.longitude.toFixed(4);
 
   try {
-    const pos = await getPos();
-    const lat = pos.coords.latitude.toFixed(4);
-    const lon = pos.coords.longitude.toFixed(4);
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=weather_code,is_day&timezone=auto`;
     const res = await fetch(url);
     if (!res.ok) throw new Error("weather-http");
@@ -96,10 +93,20 @@ async function initLiveWeatherBackground(){
       thunder: "雷暴"
     };
     const dayText = isDay === 0 ? "夜间" : "白天";
-    setWeatherStatus(`天气动态背景：已匹配你位置的${dayText}${kindText[kind] || "天气"}风格。`);
+    setWeatherStatus(`天气动态背景：${city.label} · ${dayText}${kindText[kind] || "天气"}。`);
   } catch (e) {
-    setWeatherStatus("天气动态背景：未获取到定位或天气，当前使用默认天空风格。");
+    setWeatherStatus(`天气动态背景：${city.label}天气拉取失败，使用默认天空风格。`);
   }
+}
+
+function initWeatherPresetControl(){
+  const select = document.getElementById("weatherPreset");
+  if (!select) return;
+
+  applyWeatherByPreset(select.value || "donetsk");
+  select.addEventListener("change", () => {
+    applyWeatherByPreset(select.value);
+  });
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -113,5 +120,5 @@ document.addEventListener("DOMContentLoaded", () => {
   setInterval(updateWorldClocks, 1000);
 
   initBusuanziFallback();
-  initLiveWeatherBackground();
+  initWeatherPresetControl();
 });
