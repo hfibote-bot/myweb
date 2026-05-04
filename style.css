@@ -186,3 +186,60 @@ main.container{ padding: 10px 0 40px; }
   outline-offset: 2px;
   border-radius: 8px;
 }
+
+/* Apple-like weather background (location + realtime weather) */
+body::before,
+body::after{
+  content:"";
+  position:fixed;
+  inset:-20vmax;
+  pointer-events:none;
+  z-index:-1;
+}
+body::before{
+  background: radial-gradient(60vmax 40vmax at 20% 15%, var(--wx-a, rgba(125,211,252,0.24)), transparent 60%),
+              radial-gradient(55vmax 35vmax at 85% 10%, var(--wx-b, rgba(167,139,250,0.16)), transparent 58%),
+              radial-gradient(70vmax 45vmax at 55% 92%, var(--wx-c, rgba(34,211,238,0.10)), transparent 60%);
+  animation: wxFloat 14s ease-in-out infinite alternate; filter: saturate(1.25) contrast(1.08);
+}
+body::after{
+  background: linear-gradient(180deg, var(--wx-overlay-top, rgba(255,255,255,0.02)), var(--wx-overlay-bottom, rgba(0,0,0,0.15)));
+}
+
+@keyframes wxFloat{
+  0% { transform: translate3d(-1.5%, -1%, 0) scale(1); }
+  100% { transform: translate3d(1.5%, 1.2%, 0) scale(1.03); }
+}
+
+body[data-daypart="night"]{
+  --wx-overlay-top: rgba(10,18,45,0.25);
+  --wx-overlay-bottom: rgba(3,8,22,0.45);
+}
+body[data-weather="clear"]{ --wx-a: rgba(77,211,255,0.45); --wx-b: rgba(103,168,255,0.34); --wx-c: rgba(191,236,255,0.22); }
+body[data-weather="cloudy"]{ --wx-a: rgba(146,166,192,0.42); --wx-b: rgba(188,201,222,0.30); --wx-c: rgba(124,142,168,0.22); }
+body[data-weather="rain"]{ --wx-a: rgba(74,146,200,0.48); --wx-b: rgba(72,112,182,0.34); --wx-c: rgba(48,89,149,0.24); }
+body[data-weather="snow"]{ --wx-a: rgba(236,244,255,0.46); --wx-b: rgba(212,229,250,0.34); --wx-c: rgba(177,204,235,0.24); }
+body[data-weather="thunder"]{ --wx-a: rgba(121,124,212,0.46); --wx-b: rgba(102,88,182,0.36); --wx-c: rgba(63,71,138,0.26); }
+
+#weatherStatus{
+  margin-top: -2px;
+  font-size: 13px;
+}
+
+.weather-controls{
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.weather-select{
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 12px;
+  padding: 8px 10px;
+  background: rgba(255,255,255,0.05);
+  color: var(--text);
+}
+
+.weather-select option{ color: #111827; }
