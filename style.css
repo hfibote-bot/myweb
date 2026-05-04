@@ -186,3 +186,42 @@ main.container{ padding: 10px 0 40px; }
   outline-offset: 2px;
   border-radius: 8px;
 }
+
+/* Apple-like weather background (location + realtime weather) */
+body::before,
+body::after{
+  content:"";
+  position:fixed;
+  inset:-20vmax;
+  pointer-events:none;
+  z-index:-1;
+}
+body::before{
+  background: radial-gradient(60vmax 40vmax at 20% 15%, var(--wx-a, rgba(125,211,252,0.24)), transparent 60%),
+              radial-gradient(55vmax 35vmax at 85% 10%, var(--wx-b, rgba(167,139,250,0.16)), transparent 58%),
+              radial-gradient(70vmax 45vmax at 55% 92%, var(--wx-c, rgba(34,211,238,0.10)), transparent 60%);
+  animation: wxFloat 26s ease-in-out infinite alternate;
+}
+body::after{
+  background: linear-gradient(180deg, var(--wx-overlay-top, rgba(255,255,255,0.02)), var(--wx-overlay-bottom, rgba(0,0,0,0.15)));
+}
+
+@keyframes wxFloat{
+  0% { transform: translate3d(-1.5%, -1%, 0) scale(1); }
+  100% { transform: translate3d(1.5%, 1.2%, 0) scale(1.03); }
+}
+
+body[data-daypart="night"]{
+  --wx-overlay-top: rgba(10,18,45,0.25);
+  --wx-overlay-bottom: rgba(3,8,22,0.45);
+}
+body[data-weather="clear"]{ --wx-a: rgba(98,204,255,0.26); --wx-b: rgba(109,173,255,0.20); --wx-c: rgba(185,236,255,0.12); }
+body[data-weather="cloudy"]{ --wx-a: rgba(136,155,186,0.22); --wx-b: rgba(174,188,214,0.16); --wx-c: rgba(114,130,156,0.12); }
+body[data-weather="rain"]{ --wx-a: rgba(82,140,180,0.23); --wx-b: rgba(85,112,160,0.18); --wx-c: rgba(66,94,133,0.12); }
+body[data-weather="snow"]{ --wx-a: rgba(220,236,255,0.24); --wx-b: rgba(198,218,244,0.2); --wx-c: rgba(168,195,228,0.12); }
+body[data-weather="thunder"]{ --wx-a: rgba(107,117,181,0.24); --wx-b: rgba(93,86,160,0.20); --wx-c: rgba(53,61,122,0.14); }
+
+#weatherStatus{
+  margin-top: -2px;
+  font-size: 13px;
+}
