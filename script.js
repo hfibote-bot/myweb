@@ -46,6 +46,11 @@ function weatherKindFromCode(code){
   return "clear";
 }
 
+
+function getParam(key){
+  return new URLSearchParams(window.location.search).get(key);
+}
+
 const WEATHER_LOCATIONS = {
   luhansk: { label: "卢甘斯克", latitude: 48.574, longitude: 39.3078 }
 };
@@ -90,6 +95,8 @@ function initWeatherPresetControl(){
   if (!select) return;
 
   const picked = getPickedLocation();
+  const fromMap = getParam("weather_picked") === "1";
+  if (fromMap && picked) select.value = "picked";
   if (!picked && select.value === "picked") select.value = "luhansk";
 
   const run = () => {

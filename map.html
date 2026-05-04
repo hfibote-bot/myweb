@@ -20,12 +20,14 @@
     .bar a{ color: rgba(180,220,255,0.95); text-decoration: none; }
     .bar a:hover{ text-decoration: underline; }
     .small{ font-size: 12px; opacity: .8; margin-top: 4px; }
+    .btn{display:inline-block;margin-top:8px;padding:6px 10px;border-radius:10px;background:#2f6fed;color:#fff;text-decoration:none;font-size:12px;}
   </style>
 </head>
 <body>
   <div class="bar">
     <div><b id="title">地图</b> · <a href="./">回首页</a> · <a href="./planets.html">行星</a></div>
     <div class="small" id="desc">提示：从首页“世界时间”点进来会自动定位城市。</div>
+    <a class="btn" id="backHomeBtn" href="./">返回首页应用天气位置</a>
   </div>
   <div id="map"></div>
 
@@ -42,6 +44,7 @@
     function getParam(key){ return new URLSearchParams(location.search).get(key); }
 
     const mode = (getParam("mode") || "").toLowerCase();
+    const backHomeBtn = document.getElementById("backHomeBtn");
     const pickerMode = mode === "weather-picker";
     const map = L.map("map").setView([48.5740, 39.3078], 5);
 
@@ -63,9 +66,11 @@
         const { lat, lng } = e.latlng;
         const payload = { lat: Number(lat.toFixed(6)), lng: Number(lng.toFixed(6)), label: `地图选点 ${lat.toFixed(3)}, ${lng.toFixed(3)}` };
         localStorage.setItem("weatherPickedLocation", JSON.stringify(payload));
+        if (backHomeBtn) backHomeBtn.href = `./?weather_picked=1`;
         setPicked(payload.lat, payload.lng, "已保存为天气位置");
       });
       setPicked(48.5740, 39.3078, "默认：卢甘斯克");
+      if (backHomeBtn) backHomeBtn.href = `./?weather_picked=1`;
     } else {
       const cityKey = (getParam("city") || "").toLowerCase();
       if (CITIES[cityKey]) {

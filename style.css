@@ -15,6 +15,7 @@
 html,body{ height:100%; }
 body{
   margin: 0;
+  position: relative;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
   color: var(--text);
   background:
@@ -34,6 +35,8 @@ a:hover{ text-decoration: underline; }
 }
 
 header.container{
+  position: relative;
+  z-index: 1;
   padding: 26px 0 10px;
   display: flex;
   align-items: center;
@@ -73,7 +76,7 @@ h1{ margin: 0; font-size: 18px; letter-spacing: 0.2px; }
 }
 .nav a:hover{ color: var(--text); text-decoration: none; }
 
-main.container{ padding: 10px 0 40px; }
+main.container{ padding: 10px 0 40px; position: relative; z-index: 1; }
 
 .card{
   background: var(--card);
@@ -170,7 +173,9 @@ main.container{ padding: 10px 0 40px; }
 }
 
 @media (max-width: 720px){
-  header.container{ flex-direction: column; align-items: flex-start; }
+  header.container{
+  position: relative;
+  z-index: 1; flex-direction: column; align-items: flex-start; }
   .grid{ grid-template-columns: 1fr; }
 }
 
@@ -194,7 +199,7 @@ body::after{
   position:fixed;
   inset:-20vmax;
   pointer-events:none;
-  z-index:-1;
+  z-index:0;
 }
 body::before{
   background: radial-gradient(60vmax 40vmax at 20% 15%, var(--wx-a, rgba(125,211,252,0.24)), transparent 60%),
@@ -243,3 +248,10 @@ body[data-weather="thunder"]{ --wx-a: rgba(121,124,212,0.46); --wx-b: rgba(102,8
 }
 
 .weather-select option{ color: #111827; }
+
+
+body[data-weather="clear"]{ --bg: #0b2242; }
+body[data-weather="cloudy"]{ --bg: #1d2a3a; }
+body[data-weather="rain"]{ --bg: #0c1b31; }
+body[data-weather="snow"]{ --bg: #21354f; }
+body[data-weather="thunder"]{ --bg: #131734; }
