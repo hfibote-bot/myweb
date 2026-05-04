@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 
-<body>
+<body data-weather="default" data-daypart="day">
   <header class="container">
     <div class="brand">
       <div class="logo">◎</div>
@@ -34,6 +34,18 @@
         我把几个“前端小东西”放到 GitHub Pages。
         都是纯静态页面（HTML + CSS + JS），改完提交就能更新。
       </p>
+      <p class="sub" id="weatherStatus">天气动态背景：正在获取定位与天气…</p>
+      <div class="weather-controls" aria-label="天气位置设置">
+        <label for="weatherPreset" class="label">天气位置</label>
+        <select id="weatherPreset" class="weather-select">
+          <option value="donetsk" selected>顿涅茨克（默认）</option>
+          <option value="luhansk">卢甘斯克</option>
+          <option value="beijing">北京</option>
+          <option value="shanghai">上海</option>
+          <option value="newyork">纽约</option>
+          <option value="tokyo">东京</option>
+        </select>
+      </div>
 
       <div class="actions">
         <a class="btn" href="./planets.html">🚀 打开行星运动</a>
@@ -54,6 +66,7 @@
 
       <div class="actions">
         <a class="btn" href="./cuantianhoulilun.html">🧨 窜天猴理论  </a>
+        <a class="btn" href="./greenhouse.html">🌿 温室大棚计算与图纸 </a>
       </div>
 
       <div class="actions">
