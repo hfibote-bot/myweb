@@ -20,12 +20,14 @@
     .bar a{ color: rgba(180,220,255,0.95); text-decoration: none; }
     .bar a:hover{ text-decoration: underline; }
     .small{ font-size: 12px; opacity: .8; margin-top: 4px; }
+    .btn{display:inline-block;margin-top:8px;padding:6px 10px;border-radius:10px;background:#2f6fed;color:#fff;text-decoration:none;font-size:12px;}
   </style>
 </head>
 <body>
   <div class="bar">
     <div><b id="title">地图</b> · <a href="./">回首页</a> · <a href="./planets.html">行星</a></div>
     <div class="small" id="desc">提示：从首页“世界时间”点进来会自动定位城市。</div>
+    <a class="btn" id="backHomeBtn" href="./">返回首页应用天气位置</a>
   </div>
   <div id="map"></div>
 
@@ -35,36 +37,51 @@
       beijing: { name: "北京",  lat: 39.9042, lng: 116.4074, z: 11 },
       london:  { name: "伦敦",  lat: 51.5074, lng: -0.1278,  z: 11 },
       newyork: { name: "纽约",  lat: 40.7128, lng: -74.0060, z: 11 },
-      la:      { name: "洛杉矶",lat: 34.0522, lng: -118.2437,z: 11 }
+      la:      { name: "洛杉矶",lat: 34.0522, lng: -118.2437,z: 11 },
+      luhansk: { name: "卢甘斯克", lat: 48.5740, lng: 39.3078, z: 10 }
     };
 
-    function getParam(key){
-      return new URLSearchParams(location.search).get(key);
+    function getParam(key){ return new URLSearchParams(location.search).get(key); }
+
+    const mode = (getParam("mode") || "").toLowerCase();
+    const backHomeBtn = document.getElementById("backHomeBtn");
+    const pickerMode = mode === "weather-picker";
+    const map = L.map("map").setView([48.5740, 39.3078], 5);
+
+    L.tileLayer("https://wprd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scl=1&style=7&x={x}&y={y}&z={z}", {
+      subdomains: "1234", maxZoom: 19, attribution: "© 高德地图"
+    }).addTo(map);
+
+    let marker = null;
+
+    function setPicked(lat, lng, label){
+      if (marker) marker.remove();
+      marker = L.marker([lat, lng]).addTo(map).bindPopup(label).openPopup();
     }
 
-    const map = L.map("map").setView([39.9042, 116.4074], 4);
-
-    L.tileLayer(
-            "https://wprd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scl=1&style=7&x={x}&y={y}&z={z}",
-    {
-       subdomains: "1234",
-       maxZoom: 19,
-       attribution: "© 高德地图"
-     }
-    ).addTo(map);
-
-
-
-    const cityKey = (getParam("city") || "").toLowerCase();
-    if (CITIES[cityKey]) {
-      const c = CITIES[cityKey];
-      document.getElementById("title").textContent = `地图：${c.name}`;
-      document.getElementById("desc").textContent = `已定位到 ${c.name}（${c.lat.toFixed(4)}, ${c.lng.toFixed(4)}）`;
-
-      map.setView([c.lat, c.lng], c.z);
-      L.marker([c.lat, c.lng]).addTo(map).bindPopup(`${c.name}`).openPopup();
+    if (pickerMode) {
+      document.getElementById("title").textContent = "地图选点：天气背景";
+      document.getElementById("desc").textContent = "点击地图任意位置设置天气位置，返回首页后选择“地图选点”即可生效。";
+      map.on("click", (e) => {
+        const { lat, lng } = e.latlng;
+        const payload = { lat: Number(lat.toFixed(6)), lng: Number(lng.toFixed(6)), label: `地图选点 ${lat.toFixed(3)}, ${lng.toFixed(3)}` };
+        localStorage.setItem("weatherPickedLocation", JSON.stringify(payload));
+        if (backHomeBtn) backHomeBtn.href = `./?weather_picked=1`;
+        setPicked(payload.lat, payload.lng, "已保存为天气位置");
+      });
+      setPicked(48.5740, 39.3078, "默认：卢甘斯克");
+      if (backHomeBtn) backHomeBtn.href = `./?weather_picked=1`;
     } else {
-      document.getElementById("desc").textContent = "你也可以在首页点城市按钮，或在地址后加 ?city=beijing / london / newyork / la";
+      const cityKey = (getParam("city") || "").toLowerCase();
+      if (CITIES[cityKey]) {
+        const c = CITIES[cityKey];
+        document.getElementById("title").textContent = `地图：${c.name}`;
+        document.getElementById("desc").textContent = `已定位到 ${c.name}（${c.lat.toFixed(4)}, ${c.lng.toFixed(4)}）`;
+        map.setView([c.lat, c.lng], c.z);
+        setPicked(c.lat, c.lng, c.name);
+      } else {
+        document.getElementById("desc").textContent = "你也可以在首页点城市按钮，或在地址后加 ?city=beijing / london / newyork / la";
+      }
     }
   </script>
 </body>
