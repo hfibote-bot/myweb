@@ -34,12 +34,17 @@
         我把几个“前端小东西”放到 GitHub Pages。
         都是纯静态页面（HTML + CSS + JS），改完提交就能更新。
       </p>
-      <p class="sub" id="weatherStatus">天气动态背景：正在获取定位与天气…</p>
+      <p class="sub" id="weatherStatus">天气动态背景：正在获取位置与天气…</p>
       <div class="weather-controls" aria-label="天气位置设置">
         <label for="weatherPreset" class="label">天气位置</label>
         <select id="weatherPreset" class="weather-select">
-          <option value="luhansk" selected>卢甘斯克（默认）</option>
+          <option value="auto" selected>当前位置（自动）</option>
           <option value="picked">地图选点</option>
+          <option value="luhansk">卢甘斯克</option>
+          <option value="beijing">北京</option>
+          <option value="london">伦敦</option>
+          <option value="newyork">纽约</option>
+          <option value="la">洛杉矶</option>
         </select>
         <a class="chip" id="pickWeatherOnMap" href="./map.html?mode=weather-picker">在地图上选择位置</a>
       </div>
