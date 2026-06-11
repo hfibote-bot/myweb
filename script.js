@@ -143,7 +143,7 @@ function initWeatherPresetControl(){
 function loadWeatherConsoleUpgrade(){
   if (document.querySelector('script[src^="weather-console-upgrade.js"]')) return;
   const script = document.createElement("script");
-  script.src = "weather-console-upgrade.js?v=20260611-3";
+  script.src = "weather-console-upgrade.js?v=20260611-4";
   script.defer = true;
   document.body.appendChild(script);
 }
