@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>天气调制台</title>
+  <meta name="description" content="独立天气背景模拟与调制页面" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="weather-lab.css" />
+</head>
+
+<body class="weather-console-page" data-weather-console="page" data-weather="clear" data-daypart="day">
+  <header class="weather-page-topbar">
+    <a class="btn ghost weather-page-home" href="./index.html">返回首页</a>
+
+    <div class="weather-page-title">
+      <h1>天气调制台</h1>
+      <p class="sub" id="weatherStatus">天气动态背景：正在准备独立展示画布…</p>
+    </div>
+
+    <div class="weather-page-tools">
+      <div class="weather-controls" aria-label="天气位置设置">
+        <label for="weatherPreset" class="label">天气位置</label>
+        <select id="weatherPreset" class="weather-select">
+          <option value="luhansk" selected>卢甘斯克（默认）</option>
+          <option value="wuhu">芜湖</option>
+          <option value="picked">地图选点</option>
+        </select>
+        <a class="chip" id="pickWeatherOnMap" href="./map.html?mode=weather-picker">地图选点</a>
+      </div>
+      <button id="openWeatherLabBtn" class="btn ghost" type="button">显示/隐藏控制台</button>
+    </div>
+  </header>
+
+  <main aria-label="天气展示画布">
+    <aside id="weatherLab" class="weather-lab" aria-label="天气模拟参数"></aside>
+
+    <section class="weather-page-stage-note" aria-live="polite">
+      <strong>画面展示区</strong>
+      <span id="weatherPageReadout">中间区域留给天气本身，控制台固定在左侧，可以随时隐藏。</span>
+    </section>
+  </main>
+
+  <script src="weather-background.js"></script>
+  <script src="script.js"></script>
+  <script>
+    (function(){
+      const status = document.getElementById("weatherStatus");
+      const readout = document.getElementById("weatherPageReadout");
+      function syncReadout(){
+        if(status && readout) readout.textContent = status.textContent.replace("天气动态背景：", "");
+      }
+      if(status && readout){
+        new MutationObserver(syncReadout).observe(status, { childList: true, characterData: true, subtree: true });
+        syncReadout();
+      }
+    })();
+  </script>
+</body>
+</html>
