@@ -4,10 +4,10 @@ function copySiteUrl(){
     const btn = document.getElementById("copyUrlBtn");
     if (!btn) return;
     const old = btn.textContent;
-    btn.textContent = "已复制 ✅";
+    btn.textContent = "\u5df2\u590d\u5236 \u2705";
     setTimeout(() => { btn.textContent = old; }, 1200);
   }).catch(() => {
-    alert("复制失败：你的浏览器可能不允许自动复制。请手动复制地址栏链接。");
+    alert("\u590d\u5236\u5931\u8d25\uff1a\u4f60\u7684\u6d4f\u89c8\u5668\u53ef\u80fd\u4e0d\u5141\u8bb8\u81ea\u52a8\u590d\u5236\u3002\u8bf7\u624b\u52a8\u590d\u5236\u5730\u5740\u680f\u94fe\u63a5\u3002");
   });
 }
 
@@ -38,7 +38,7 @@ function initBusuanziFallback(){
   const pvNode = document.getElementById("busuanzi_page_pv");
   if (!pvNode) return;
   window.setTimeout(() => {
-    if (pvNode.textContent && pvNode.textContent.includes("加载中")) pvNode.textContent = "暂不可用";
+    if (pvNode.textContent && pvNode.textContent.includes("\u52a0\u8f7d\u4e2d")) pvNode.textContent = "\u6682\u4e0d\u53ef\u7528";
   }, 4000);
 }
 
@@ -61,8 +61,8 @@ function getParam(key){
 }
 
 const WEATHER_LOCATIONS = {
-  luhansk: { label: "卢甘斯克", latitude: 48.574, longitude: 39.3078 },
-  wuhu: { label: "芜湖", latitude: 31.3525, longitude: 118.4331 }
+  luhansk: { label: "\u5362\u7518\u65af\u514b", latitude: 48.574, longitude: 39.3078 },
+  wuhu: { label: "\u829c\u6e56", latitude: 31.3525, longitude: 118.4331 }
 };
 
 function getPickedLocation(){
@@ -71,7 +71,7 @@ function getPickedLocation(){
     if (!raw) return null;
     const data = JSON.parse(raw);
     if (typeof data?.lat !== "number" || typeof data?.lng !== "number") return null;
-    return { label: data.label || "地图选点", latitude: data.lat, longitude: data.lng };
+    return { label: data.label || "\u5730\u56fe\u9009\u70b9", latitude: data.lat, longitude: data.lng };
   } catch (e) {
     return null;
   }
@@ -85,16 +85,16 @@ function getActiveWeatherLocation(){
 
 function describeWeatherState(wx){
   const kindText = {
-    sunny: "晴朗",
-    cloudy: "多云/阴天",
-    rainy: "雨天",
-    snowy: "雪天",
-    thunderstorm: "雷雨",
-    foggy: "雾",
-    duststorm: "沙尘",
-    night_clear: "晴朗夜空"
+    sunny: "\u6674\u6717",
+    cloudy: "\u591a\u4e91/\u9634\u5929",
+    rainy: "\u96e8\u5929",
+    snowy: "\u96ea\u5929",
+    thunderstorm: "\u96f7\u96e8",
+    foggy: "\u96fe",
+    duststorm: "\u6c99\u5c18",
+    night_clear: "\u6674\u6717\u591c\u7a7a"
   };
-  return kindText[wx?.type] || wx?.label || "天气";
+  return kindText[wx?.type] || wx?.label || "\u5929\u6c14";
 }
 
 async function applyWeather(location){
@@ -104,16 +104,16 @@ async function applyWeather(location){
       const wx = result?.weather || window.weatherBackground.getState();
       const kind = legacyKindFromBackgroundType(wx.type);
       const daypart = wx.timeOfDay === "night" ? "night" : "day";
-      const tempText = typeof wx.temperature === "number" ? ` · ${Math.round(wx.temperature)}℃` : "";
+      const tempText = typeof wx.temperature === "number" ? ` \u00b7 ${Math.round(wx.temperature)}\u2103` : "";
       document.body.dataset.weather = kind;
       document.body.dataset.daypart = daypart;
-      setWeatherStatus(`天气动态背景：${location.label} · ${daypart === "night" ? "夜间" : "白天"}${describeWeatherState(wx)}${tempText}（实时）`);
+      setWeatherStatus(`\u5929\u6c14\u52a8\u6001\u80cc\u666f\uff1a${location.label} \u00b7 ${daypart === "night" ? "\u591c\u95f4" : "\u767d\u5929"}${describeWeatherState(wx)}${tempText}\uff08\u5b9e\u65f6\uff09`);
       return;
     }
-    setWeatherStatus(`天气动态背景：${location.label} · 实时天气模块未加载。`);
+    setWeatherStatus(`\u5929\u6c14\u52a8\u6001\u80cc\u666f\uff1a${location.label} \u00b7 \u5b9e\u65f6\u5929\u6c14\u6a21\u5757\u672a\u52a0\u8f7d\u3002`);
   } catch (e) {
     window.weatherBackground?.setWeather?.({ type: "sunny", timeOfDay: "afternoon", cloudCover: 25, density: 35 });
-    setWeatherStatus(`天气动态背景：${location.label}天气拉取失败，使用默认晴朗风格。`);
+    setWeatherStatus(`\u5929\u6c14\u52a8\u6001\u80cc\u666f\uff1a${location.label}\u5929\u6c14\u62c9\u53d6\u5931\u8d25\uff0c\u4f7f\u7528\u9ed8\u8ba4\u6674\u6717\u98ce\u683c\u3002`);
   }
 }
 
@@ -123,7 +123,7 @@ function initWeatherPresetControl(){
   if (!select.querySelector('option[value="wuhu"]')) {
     const option = document.createElement("option");
     option.value = "wuhu";
-    option.textContent = "芜湖";
+    option.textContent = "\u829c\u6e56";
     select.insertBefore(option, select.querySelector('option[value="picked"]'));
   }
   const picked = getPickedLocation();
@@ -131,7 +131,7 @@ function initWeatherPresetControl(){
   if (!picked && select.value === "picked") select.value = "luhansk";
   const run = () => {
     if (select.value === "picked" && !getPickedLocation()) {
-      setWeatherStatus("天气动态背景：还没有地图选点，先点“在地图上选择位置”。");
+      setWeatherStatus("\u5929\u6c14\u52a8\u6001\u80cc\u666f\uff1a\u8fd8\u6ca1\u6709\u5730\u56fe\u9009\u70b9\uff0c\u5148\u70b9\u201c\u5728\u5730\u56fe\u4e0a\u9009\u62e9\u4f4d\u7f6e\u201d\u3002");
       return applyWeather(WEATHER_LOCATIONS.luhansk);
     }
     return applyWeather(getActiveWeatherLocation());
@@ -143,7 +143,7 @@ function initWeatherPresetControl(){
 function loadWeatherConsoleUpgrade(){
   if (document.querySelector('script[src^="weather-console-upgrade.js"]')) return;
   const script = document.createElement("script");
-  script.src = "weather-console-upgrade.js?v=20260611-2";
+  script.src = "weather-console-upgrade.js?v=20260611-3";
   script.defer = true;
   document.body.appendChild(script);
 }
