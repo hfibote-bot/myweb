@@ -47,7 +47,69 @@
       <div class="actions">
         <a class="btn" href="./planets.html">🚀 打开行星运动</a>
         <a class="btn" href="./map.html">🗺️ 打开地图高德</a>
-     </div>
+        <button id="openWeatherLabBtn" class="btn" type="button">⛈️ 天气调制台</button>
+      </div>
+
+      <div id="weatherLab" class="weather-lab" hidden>
+        <div class="weather-lab-head">
+          <div>
+            <h3>天气调制台</h3>
+            <p>把真实天气先放一边，这里是手动造天区。</p>
+          </div>
+          <button id="closeWeatherLabBtn" class="weather-lab-close" type="button" aria-label="关闭天气调制台">×</button>
+        </div>
+
+        <div class="weather-preset-grid" aria-label="天气效果预设">
+          <button type="button" data-weather-type="live">实时天气</button>
+          <button type="button" data-weather-type="sunny">晴天</button>
+          <button type="button" data-weather-type="cloudy">多云</button>
+          <button type="button" data-weather-type="rainy">小雨</button>
+          <button type="button" data-weather-type="downpour">暴雨</button>
+          <button type="button" data-weather-type="thunderstorm">雷暴</button>
+          <button type="button" data-weather-type="snowy">暴雪</button>
+          <button type="button" data-weather-type="foggy">大雾</button>
+          <button type="button" data-weather-type="duststorm">沙尘暴</button>
+          <button type="button" data-weather-type="tornado">龙卷风</button>
+          <button type="button" data-weather-type="night_clear">夜空</button>
+        </div>
+
+        <div class="weather-lab-controls">
+          <label>雨/雪/沙尘密度 <span id="weatherDensityValue">70</span>%
+            <input id="weatherDensity" type="range" min="0" max="100" value="70" />
+          </label>
+          <label>风向
+            <select id="weatherWindDirection">
+              <option value="1">东风 →</option>
+              <option value="-1">西风 ←</option>
+            </select>
+          </label>
+          <label>风速 <span id="weatherWindValue">6</span>
+            <input id="weatherWind" type="range" min="0" max="12" value="6" />
+          </label>
+          <label>云量/遮蔽 <span id="weatherCloudValue">78</span>%
+            <input id="weatherCloud" type="range" min="0" max="100" value="78" />
+          </label>
+          <label>闪电频率 <span id="weatherLightningValue">68</span>%
+            <input id="weatherLightning" type="range" min="0" max="100" value="68" />
+          </label>
+          <label>压迫感 <span id="weatherPressureValue">76</span>%
+            <input id="weatherPressure" type="range" min="0" max="100" value="76" />
+          </label>
+          <label>时间光线
+            <select id="weatherTimeOfDay">
+              <option value="morning">清晨</option>
+              <option value="afternoon" selected>白天</option>
+              <option value="sunset">落日</option>
+              <option value="night">夜晚</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="weather-lab-actions">
+          <button id="applyWeatherLabBtn" class="btn" type="button">应用调制</button>
+          <button id="strikeWeatherLabBtn" class="btn ghost" type="button">手动打一闪电</button>
+        </div>
+      </div>
 
       <div class="actions">
         <a class="btn" href="./solenoid_ui_interactive_v3.html">🧲 线圈磁场1 </a>
