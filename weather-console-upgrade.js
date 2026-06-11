@@ -26,6 +26,7 @@
       const o=document.createElement("option"); o.value="wuhu"; o.textContent="\u829c\u6e56";
       s.insertBefore(o,s.querySelector('option[value="picked"]'));
     }
+    if(page())return;
     s.addEventListener("change",()=>{
       if(s.value!=="wuhu")return;
       setTimeout(()=>{
