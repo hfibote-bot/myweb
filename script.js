@@ -46,6 +46,13 @@ function weatherKindFromCode(code){
   return "clear";
 }
 
+function legacyKindFromBackgroundType(type){
+  if (type === "thunderstorm") return "thunder";
+  if (type === "snowy") return "snow";
+  if (type === "rainy") return "rain";
+  if (type === "cloudy" || type === "foggy") return "cloudy";
+  return "clear";
+}
 
 function getParam(key){
   return new URLSearchParams(window.location.search).get(key);
@@ -67,10 +74,39 @@ function getPickedLocation(){
   }
 }
 
+function describeWeatherState(wx){
+  const kindText = {
+    sunny: "晴天",
+    cloudy: "多云/阴天",
+    rainy: "雨天",
+    snowy: "雪天",
+    thunderstorm: "雷暴",
+    foggy: "雾天",
+    night_clear: "晴朗夜空"
+  };
+  return kindText[wx?.type] || wx?.label || "天气";
+}
+
 async function applyWeather(location){
   const lat = location.latitude.toFixed(4);
   const lon = location.longitude.toFixed(4);
+
   try {
+    if (window.weatherBackground?.syncByCoords) {
+      const result = await window.weatherBackground.syncByCoords(location.latitude, location.longitude);
+      const wx = result?.weather || window.weatherBackground.getState();
+      const kind = legacyKindFromBackgroundType(wx.type);
+      const daypart = wx.timeOfDay === "night" ? "night" : "day";
+      const tempText = typeof wx.temperature === "number" ? ` · ${Math.round(wx.temperature)}℃` : "";
+
+      document.body.dataset.weather = kind;
+      document.body.dataset.daypart = daypart;
+
+      const dayText = daypart === "night" ? "夜间" : "白天";
+      setWeatherStatus(`天气动态背景：${location.label} · ${dayText}${describeWeatherState(wx)}${tempText}（实时）`);
+      return;
+    }
+
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=weather_code,is_day&timezone=auto`;
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) throw new Error("weather-http");
@@ -86,6 +122,9 @@ async function applyWeather(location){
     const dayText = isDay === 0 ? "夜间" : "白天";
     setWeatherStatus(`天气动态背景：${location.label} · ${dayText}${kindText[kind] || "天气"}（实时）`);
   } catch (e) {
+    if (window.weatherBackground?.setWeather) {
+      window.weatherBackground.setWeather({ type: "sunny", timeOfDay: "afternoon", cloudCover: 25, density: 35 });
+    }
     setWeatherStatus(`天气动态背景：${location.label}天气拉取失败，使用默认天空风格。`);
   }
 }
