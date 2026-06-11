@@ -50,6 +50,8 @@ function legacyKindFromBackgroundType(type){
   if (type === "thunderstorm") return "thunder";
   if (type === "snowy") return "snow";
   if (type === "rainy") return "rain";
+  if (type === "duststorm") return "dust";
+  if (type === "tornado") return "tornado";
   if (type === "cloudy" || type === "foggy") return "cloudy";
   return "clear";
 }
@@ -74,6 +76,12 @@ function getPickedLocation(){
   }
 }
 
+function getActiveWeatherLocation(){
+  const select = document.getElementById("weatherPreset");
+  if (select?.value === "picked") return getPickedLocation() || WEATHER_LOCATIONS.luhansk;
+  return WEATHER_LOCATIONS.luhansk;
+}
+
 function describeWeatherState(wx){
   const kindText = {
     sunny: "晴天",
@@ -82,6 +90,8 @@ function describeWeatherState(wx){
     snowy: "雪天",
     thunderstorm: "雷暴",
     foggy: "雾天",
+    duststorm: "沙尘暴",
+    tornado: "龙卷风",
     night_clear: "晴朗夜空"
   };
   return kindText[wx?.type] || wx?.label || "天气";
@@ -152,6 +162,132 @@ function initWeatherPresetControl(){
   select.addEventListener("change", run);
 }
 
+const WEATHER_LAB_PRESETS = {
+  sunny: { label: "晴天", type: "sunny", density: 26, wind: 2, direction: 1, cloud: 12, lightning: 0, pressure: 12, time: "afternoon" },
+  cloudy: { label: "多云", type: "cloudy", density: 42, wind: 3, direction: 1, cloud: 76, lightning: 0, pressure: 28, time: "afternoon" },
+  rainy: { label: "小雨", type: "rainy", density: 48, wind: 3, direction: 1, cloud: 78, lightning: 0, pressure: 38, time: "afternoon" },
+  downpour: { label: "暴雨", type: "rainy", density: 96, wind: 8, direction: 1, cloud: 94, lightning: 22, pressure: 70, time: "afternoon" },
+  thunderstorm: { label: "雷暴", type: "thunderstorm", density: 90, wind: 9, direction: -1, cloud: 96, lightning: 88, pressure: 88, time: "night" },
+  snowy: { label: "暴雪", type: "snowy", density: 92, wind: 6, direction: -1, cloud: 88, lightning: 0, pressure: 45, time: "night" },
+  foggy: { label: "大雾", type: "foggy", density: 76, wind: 1, direction: 1, cloud: 90, lightning: 0, pressure: 42, time: "morning" },
+  duststorm: { label: "沙尘暴", type: "duststorm", density: 92, wind: 10, direction: 1, cloud: 62, lightning: 0, pressure: 72, time: "sunset" },
+  tornado: { label: "龙卷风", type: "tornado", density: 86, wind: 12, direction: -1, cloud: 100, lightning: 92, pressure: 100, time: "night" },
+  night_clear: { label: "夜空", type: "night_clear", density: 32, wind: 2, direction: 1, cloud: 8, lightning: 0, pressure: 18, time: "night" }
+};
+
+let activeWeatherLabPreset = "thunderstorm";
+
+function setControlValue(id, value){
+  const node = document.getElementById(id);
+  if (node) node.value = String(value);
+}
+
+function setControlText(id, value){
+  const node = document.getElementById(id);
+  if (node) node.textContent = String(value);
+}
+
+function syncWeatherLabReadouts(){
+  const ids = [
+    ["weatherDensity", "weatherDensityValue"],
+    ["weatherWind", "weatherWindValue"],
+    ["weatherCloud", "weatherCloudValue"],
+    ["weatherLightning", "weatherLightningValue"],
+    ["weatherPressure", "weatherPressureValue"]
+  ];
+  ids.forEach(([inputId, textId]) => {
+    const input = document.getElementById(inputId);
+    if (input) setControlText(textId, input.value);
+  });
+}
+
+function setActiveWeatherLabButton(type){
+  document.querySelectorAll("[data-weather-type]").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.weatherType === type);
+  });
+}
+
+function loadWeatherLabPreset(type){
+  const preset = WEATHER_LAB_PRESETS[type];
+  if (!preset) return;
+  activeWeatherLabPreset = type;
+  setControlValue("weatherDensity", preset.density);
+  setControlValue("weatherWind", preset.wind);
+  setControlValue("weatherWindDirection", preset.direction);
+  setControlValue("weatherCloud", preset.cloud);
+  setControlValue("weatherLightning", preset.lightning);
+  setControlValue("weatherPressure", preset.pressure);
+  setControlValue("weatherTimeOfDay", preset.time);
+  syncWeatherLabReadouts();
+  setActiveWeatherLabButton(type);
+}
+
+function readWeatherLabSettings(){
+  const preset = WEATHER_LAB_PRESETS[activeWeatherLabPreset] || WEATHER_LAB_PRESETS.thunderstorm;
+  const direction = Number(document.getElementById("weatherWindDirection")?.value || 1);
+  const wind = Number(document.getElementById("weatherWind")?.value || preset.wind);
+  return {
+    label: preset.label,
+    type: preset.type,
+    timeOfDay: document.getElementById("weatherTimeOfDay")?.value || preset.time,
+    density: Number(document.getElementById("weatherDensity")?.value || preset.density),
+    windSpeed: wind * direction,
+    cloudCover: Number(document.getElementById("weatherCloud")?.value || preset.cloud),
+    lightningFrequency: Number(document.getElementById("weatherLightning")?.value || preset.lightning),
+    pressure: Number(document.getElementById("weatherPressure")?.value || preset.pressure),
+    conditionLabel: preset.label
+  };
+}
+
+function applyWeatherLabSettings(){
+  if (!window.weatherBackground?.setWeather) return;
+  const settings = readWeatherLabSettings();
+  window.weatherBackground.setWeather(settings);
+  document.body.dataset.weather = legacyKindFromBackgroundType(settings.type);
+  document.body.dataset.daypart = settings.timeOfDay === "night" ? "night" : "day";
+  setWeatherStatus(`天气动态背景：手动调制 · ${settings.label} · 风速 ${Math.abs(settings.windSpeed)} · 密度 ${settings.density}%`);
+  if (settings.type === "thunderstorm" || settings.type === "tornado") {
+    window.weatherBackground.triggerLightning?.();
+  }
+}
+
+function initWeatherLab(){
+  const openBtn = document.getElementById("openWeatherLabBtn");
+  const closeBtn = document.getElementById("closeWeatherLabBtn");
+  const lab = document.getElementById("weatherLab");
+  const applyBtn = document.getElementById("applyWeatherLabBtn");
+  const strikeBtn = document.getElementById("strikeWeatherLabBtn");
+  if (!openBtn || !lab) return;
+
+  openBtn.addEventListener("click", () => {
+    lab.hidden = !lab.hidden;
+    if (!lab.hidden) loadWeatherLabPreset(activeWeatherLabPreset);
+  });
+
+  closeBtn?.addEventListener("click", () => { lab.hidden = true; });
+
+  document.querySelectorAll("[data-weather-type]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const type = btn.dataset.weatherType;
+      if (type === "live") {
+        setActiveWeatherLabButton("live");
+        applyWeather(getActiveWeatherLocation());
+        return;
+      }
+      loadWeatherLabPreset(type);
+      applyWeatherLabSettings();
+    });
+  });
+
+  ["weatherDensity", "weatherWind", "weatherCloud", "weatherLightning", "weatherPressure"].forEach((id) => {
+    document.getElementById(id)?.addEventListener("input", syncWeatherLabReadouts);
+  });
+
+  applyBtn?.addEventListener("click", applyWeatherLabSettings);
+  strikeBtn?.addEventListener("click", () => window.weatherBackground?.triggerLightning?.());
+  loadWeatherLabPreset(activeWeatherLabPreset);
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   const year = document.getElementById("year");
   if (year) year.textContent = String(new Date().getFullYear());
@@ -161,4 +297,5 @@ document.addEventListener("DOMContentLoaded", () => {
   setInterval(updateWorldClocks, 1000);
   initBusuanziFallback();
   initWeatherPresetControl();
+  initWeatherLab();
 });
