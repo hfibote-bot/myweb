@@ -60,6 +60,10 @@ function getParam(key){
   return new URLSearchParams(window.location.search).get(key);
 }
 
+function isWeatherConsolePage(){
+  return document.body.classList.contains("weather-console-page") || document.body.dataset.weatherConsole === "page";
+}
+
 const WEATHER_LOCATIONS = {
   luhansk: { label: "\u5362\u7518\u65af\u514b", latitude: 48.574, longitude: 39.3078 },
   wuhu: { label: "\u829c\u6e56", latitude: 31.3525, longitude: 118.4331 }
@@ -136,14 +140,16 @@ function initWeatherPresetControl(){
     }
     return applyWeather(getActiveWeatherLocation());
   };
-  run();
-  select.addEventListener("change", run);
+  if (!isWeatherConsolePage()) {
+    run();
+    select.addEventListener("change", run);
+  }
 }
 
 function loadWeatherConsoleUpgrade(){
   if (document.querySelector('script[src^="weather-console-upgrade.js"]')) return;
   const script = document.createElement("script");
-  script.src = "weather-console-upgrade.js?v=20260611-4";
+  script.src = "weather-console-upgrade.js?v=20260611-5";
   script.defer = true;
   document.body.appendChild(script);
 }
