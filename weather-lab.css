@@ -327,3 +327,179 @@ body.weather-console-page::after{
     display: none;
   }
 }
+
+/* Compact standalone console: keep controls visible without burying the scene. */
+.weather-console-page .weather-page-topbar{
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+}
+
+.weather-console-page .weather-page-title h1{
+  font-size: 17px;
+}
+
+.weather-console-page .weather-page-title #weatherStatus{
+  font-size: 12.5px;
+}
+
+.weather-console-page .weather-page-tools,
+.weather-console-page .weather-page-tools .weather-controls{
+  gap: 8px;
+}
+
+.weather-console-page .weather-page-tools .btn,
+.weather-console-page .weather-page-tools .chip,
+.weather-console-page .weather-select{
+  min-height: 34px;
+  padding-top: 7px;
+  padding-bottom: 7px;
+}
+
+.weather-console-page .weather-lab{
+  left: 12px;
+  top: 78px;
+  bottom: 12px;
+  width: min(560px, calc(100vw - 24px));
+  padding: 12px;
+  overflow: auto;
+}
+
+.weather-console-page .weather-lab-head{
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+}
+
+.weather-console-page .weather-lab-head p{
+  display: none;
+}
+
+.weather-console-page .weather-lab-close{
+  width: 30px;
+  height: 30px;
+  font-size: 20px;
+}
+
+.weather-console-page .weather-lab-section{
+  padding: 10px;
+  border-radius: 10px;
+}
+
+.weather-console-page .weather-lab-section + .weather-lab-section{
+  margin-top: 0;
+}
+
+.weather-console-page .weather-lab-section-title{
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.weather-console-page .weather-preset-grid{
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.weather-console-page .weather-preset-grid button,
+.weather-console-page .weather-lab-actions button{
+  min-height: 32px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.weather-console-page .weather-lab-control-grid{
+  margin-top: 10px;
+  grid-template-columns: 1.08fr 1fr;
+  gap: 8px;
+  align-items: start;
+}
+
+.weather-console-page .weather-lab-control-grid > .weather-lab-section:nth-child(3){
+  grid-column: 1 / -1;
+}
+
+.weather-console-page .weather-lab-controls{
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.weather-console-page .weather-lab-control-grid > .weather-lab-section:nth-child(3) .weather-lab-controls{
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.weather-console-page .weather-lab-controls label{
+  gap: 4px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.weather-console-page .weather-lab-controls input,
+.weather-console-page .weather-lab-controls select{
+  min-height: 30px;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.weather-console-page .weather-lab-controls input[type="range"]{
+  min-height: 20px;
+  padding: 0;
+}
+
+.weather-console-page .weather-lab-actions{
+  position: sticky;
+  bottom: -12px;
+  z-index: 3;
+  margin-top: 10px;
+  padding-top: 10px;
+  background: linear-gradient(180deg, rgba(6,12,24,0), rgba(6,12,24,0.92) 34%);
+}
+
+.weather-console-page .weather-lab-actions .btn{
+  flex: 1 1 160px;
+}
+
+@media (max-width: 980px){
+  .weather-console-page .weather-lab{
+    top: 158px;
+    width: min(540px, calc(100vw - 24px));
+    max-height: calc(100vh - 170px);
+  }
+
+  .weather-console-page .weather-preset-grid{
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .weather-console-page .weather-lab-control-grid{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px){
+  .weather-console-page .weather-lab{
+    left: 10px;
+    right: 10px;
+    top: 220px;
+    bottom: 10px;
+    width: auto;
+    max-height: calc(100vh - 230px);
+  }
+
+  .weather-console-page .weather-preset-grid{
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .weather-console-page .weather-lab-control-grid,
+  .weather-console-page .weather-lab-control-grid > .weather-lab-section:nth-child(3) .weather-lab-controls{
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 460px){
+  .weather-console-page .weather-preset-grid{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
