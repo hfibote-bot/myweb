@@ -19,6 +19,7 @@
   const $=id=>document.getElementById(id);
   const rnd=(a,b)=>a+Math.random()*(b-a);
   const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const page=()=>document.body.classList.contains("weather-console-page")||document.body.dataset.weatherConsole==="page";
   function addWuhu(){
     const s=$("weatherPreset"); if(!s)return;
     if(!s.querySelector('option[value="wuhu"]')){
@@ -36,7 +37,13 @@
   }
   function replaceOpenButton(){
     const old=$("openWeatherLabBtn"); if(!old || old.dataset.upgraded==="1")return;
-    const b=old.cloneNode(true); b.dataset.upgraded="1"; b.textContent="\u26c8\ufe0f \u5929\u6c14\u8c03\u5236\u53f0";
+    if(!page()){
+      const a=document.createElement("a"); a.id=old.id; a.className=old.className; a.href="./weather-console.html"; a.dataset.upgraded="1"; a.textContent="\u26c8\ufe0f \u5929\u6c14\u8c03\u5236\u53f0";
+      old.parentNode.replaceChild(a,old);
+      const lab=$("weatherLab"); if(lab)lab.remove();
+      return;
+    }
+    const b=old.cloneNode(true); b.dataset.upgraded="1"; b.textContent="\u26c8\ufe0f \u663e\u793a/\u9690\u85cf\u63a7\u5236\u53f0";
     old.parentNode.replaceChild(b,old);
     b.addEventListener("click",()=>{const lab=$("weatherLab"); if(!lab)return; lab.hidden=!lab.hidden; if(!lab.hidden)build();});
   }
@@ -102,6 +109,6 @@
   function haze(){ const z=Math.max((100-S.visibility)/100,S.type==="foggy"?.55:0,S.type==="duststorm"?.42:0); if(z<=.05)return; const col=S.type==="duststorm"?"214,180,120":"226,232,240",g=ctx.createLinearGradient(0,h*.25,0,h); g.addColorStop(0,`rgba(${col},0)`); g.addColorStop(.65,`rgba(${col},${z*.32})`); g.addColorStop(1,`rgba(${col},${z*.55})`); ctx.fillStyle=g; ctx.fillRect(0,0,w,h); }
   function bolt(force){ const C={white:"rgba(240,249,255,",violet:"rgba(196,181,253,",cyan:"rgba(103,232,249,",gold:"rgba(254,240,138,",rose:"rgba(244,114,182,"},ks=Object.keys(C),pick=$("weatherLightningColor")?.value||"mixed"; fc=C[pick==="mixed"?ks[Math.floor(Math.random()*ks.length)]:pick]||C.white; flash=force?1.65:1.35; boltPath=[]; boltBranches=[]; let x=rnd(w*.2,w*.8),y=0; boltPath.push({x,y}); for(let i=0;i<12;i++){x+=rnd(-48,48);y+=rnd(28,58);boltPath.push({x,y}); if(i>2&&Math.random()>.62){let bx=x,by=y,br=[{x:bx,y:by}];for(let j=0;j<3;j++){bx+=rnd(-38,38);by+=rnd(16,34);br.push({x:bx,y:by});}boltBranches.push(br);} if(y>h*.82)break;} }
   function lightning(){ if(S.type==="thunderstorm"&&Math.random()<S.lightningFrequency/5200)bolt(false); if(flash<=0||boltPath.length<2)return; const a=Math.min(1,flash); ctx.fillStyle=`${fc}${flash*.22})`;ctx.fillRect(0,0,w,h); ctx.save();ctx.lineCap="round";ctx.lineJoin="round";ctx.strokeStyle=`${fc}${a})`;ctx.shadowColor=ctx.strokeStyle;ctx.shadowBlur=26;ctx.lineWidth=6;ctx.beginPath();boltPath.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.stroke();ctx.lineWidth=2.2;ctx.shadowBlur=10;boltBranches.forEach(br=>{ctx.beginPath();br.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.stroke();});ctx.restore();flash-=.018; }
-  function init(){ addWuhu(); replaceOpenButton(); build(); }
+  function init(){ addWuhu(); replaceOpenButton(); build(); if(page())setTimeout(()=>{const s=new URLSearchParams(location.search).get("scene");if(P[s])load(s);apply();},0); }
   if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init,{once:true}); else init();
 })();
